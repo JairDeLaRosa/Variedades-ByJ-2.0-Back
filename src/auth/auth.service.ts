@@ -61,9 +61,12 @@ export class AuthService {
     return {
       ok: true,
       msg: "Login exitoso!",
-      uid: usuario._id,
-      name: usuario.name,
-      admin: usuario.admin,
+      user: {
+        name: usuario.name,
+        phone: usuario.phone,
+        email: usuario.email,
+        admin: usuario.admin,
+      },
       token,
     };
   }
