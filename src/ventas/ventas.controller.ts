@@ -25,21 +25,23 @@ export class VentasController {
   findAll() {
     return this.ventasService.findAll();
   }
-
   @Get("by-month")
   getByMonth(@Query("date") date: string) {
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {
+    // date = "2025-12"
+    const [yearStr, monthStr] = date.split("-");
+
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+
+    if (!year || !month || month < 1 || month > 12) {
       throw new HttpException(
-        "Fecha inválida. Use formato YYYY-MM-DD.",
+        "Fecha inválida. Use formato YYYY-MM.",
         HttpStatus.BAD_REQUEST,
       );
     }
-    const month = dateObj.getMonth() + 2;
-    const year = dateObj.getFullYear();
+
     return this.ventasService.getByMonth(month, year);
   }
-
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.ventasService.findOne(id);
