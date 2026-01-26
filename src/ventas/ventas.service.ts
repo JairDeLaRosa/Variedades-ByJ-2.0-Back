@@ -78,12 +78,18 @@ export class VentasService {
   }
 
   async getByMonth(month: number, year: number): Promise<Venta[]> {
-    const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-    const end = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+    const m = String(month).padStart(2, "0");
+    const start = `${year}-${m}-01`;
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const nm = String(nextMonth).padStart(2, "0");
+    const end = `${nextYear}-${nm}-01`;
 
     return this.ventaModel
-      .find({ fecha: { $gte: start, $lt: end } })
-      .sort({ fecha: -1 })
+      .find({
+        fechaDia: { $gte: start, $lt: end },
+      })
+      .sort({ fechaDia: -1 })
       .exec();
   }
 }
