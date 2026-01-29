@@ -110,8 +110,12 @@ export class FilesController {
   }
 
   // ✅ ELIMINAR ARCHIVO
-  @Delete(":publicId")
+  @Delete("*publicId")
   async remove(@Param("publicId") publicId: string) {
-    return this.filesService.deleteFile(publicId);
+    const id = Array.isArray(publicId)
+      ? publicId.join("/") // 👉 docs/axn65frnrpabqyoca2pm
+      : publicId;
+
+    return this.filesService.deleteFile(id);
   }
 }

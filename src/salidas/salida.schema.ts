@@ -17,10 +17,10 @@ export class Salida {
   @Prop({ required: true })
   tienda: string;
 
-  @Prop({ required: true })
+  @Prop({})
   publicIds: string; // publicIds separados por |
 
-  @Prop({ required: true })
+  @Prop({})
   urls: string; // urls separados por |
 }
 

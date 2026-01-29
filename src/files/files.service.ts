@@ -24,7 +24,7 @@ export class FilesService {
 
   async deleteFile(publicId: string) {
     return this.cloudinary.uploader.destroy(publicId, {
-      resource_type: "auto",
+      resource_type: "image",
     });
   }
 
