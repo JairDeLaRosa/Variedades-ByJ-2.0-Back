@@ -3,8 +3,8 @@ import { Venta } from "../ventas.schema";
 export class CreateVentaDto {
   fecha: Date;
   total: number;
-  pedidos: number;
-  ticketPromedio: number;
+  totalPinateria: number;
+  totalPapeleria: number;
 }
 
 export interface ResponseCreateRPT {

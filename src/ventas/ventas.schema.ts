@@ -15,10 +15,10 @@ export class Venta {
   total: number;
 
   @Prop({ required: true })
-  pedidos: number;
+  totalPinateria: number;
 
   @Prop({ required: true })
-  ticketPromedio: number;
+  totalPapeleria: number;
 }
 
 export const VentaSchema = SchemaFactory.createForClass(Venta);

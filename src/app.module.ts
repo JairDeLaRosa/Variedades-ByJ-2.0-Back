@@ -6,6 +6,7 @@ import { VentasModule } from "./ventas/ventas.module";
 import { SalidaModule } from "./salidas/salida.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.modulo";
 import { FilesModule } from "./files/files.module";
+import { ProductoModule } from "./productos/producto.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { FilesModule } from "./files/files.module";
     CloudinaryModule,
     SalidaModule,
     FilesModule,
+    ProductoModule,
   ],
 })
 export class AppModule {}
