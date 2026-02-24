@@ -21,7 +21,7 @@ export class Venta {
   totalPapeleria: number;
 
   @Prop({required: true})
-  totalTransferencia: number
+  totalTransferencias: number
 }
 
 export const VentaSchema = SchemaFactory.createForClass(Venta);

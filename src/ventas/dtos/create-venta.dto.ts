@@ -5,7 +5,7 @@ export class CreateVentaDto {
   total: number;
   totalPinateria: number;
   totalPapeleria: number;
-  totalTransferencia: number
+  totalTransferencias: number
 }
 
 export interface ResponseCreateRPT {
