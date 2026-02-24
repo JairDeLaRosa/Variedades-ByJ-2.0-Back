@@ -19,6 +19,9 @@ export class Venta {
 
   @Prop({ required: true })
   totalPapeleria: number;
+
+  @Prop({required: true})
+  totalTransferencia: number
 }
 
 export const VentaSchema = SchemaFactory.createForClass(Venta);
