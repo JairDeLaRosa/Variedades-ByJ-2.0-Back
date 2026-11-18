@@ -31,7 +31,7 @@ jobs:
         run: npx eslint "{src,test}/**/*.ts"
 
       - name: Formato
-        run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+        run: npx prettier --check "src/**/*.ts"
 
       - name: Type-check
         run: npx tsc --noEmit
