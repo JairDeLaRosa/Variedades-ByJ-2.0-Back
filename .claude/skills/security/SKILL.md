@@ -32,7 +32,7 @@ description: Reglas de seguridad para el backend NestJS (OWASP Top 10 aplicado, 
 
 ## Entradas y archivos
 
-- Todo DTO validado; `whitelist` y `forbidNonWhitelisted` activos. IDs con `ParseUUIDPipe`.
+- Todo DTO validado; `whitelist` y `forbidNonWhitelisted` activos. IDs con `ParseIntPipe`.
 - Subidas: solo imágenes (`image/jpeg|png|webp`), tamaño máximo, máximo de archivos, endpoint protegido con guard.
 - Respuestas sin campos internos (mapear a DTOs de salida).
 

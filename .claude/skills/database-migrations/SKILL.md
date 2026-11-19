@@ -16,13 +16,13 @@ description: Modelo de datos PostgreSQL, entidades TypeORM y migraciones de este
 ## Modelo objetivo
 
 ```
-usuarios        id uuid PK · nombre · email UNIQUE · telefono · password_hash · es_admin bool
-productos       id uuid PK · nombre · descripcion · categoria · precio_unidad int · descuento int(%)
+usuarios        id serial PK · nombre · email UNIQUE · telefono · password_hash · es_admin bool
+productos       id serial PK · nombre · descripcion · categoria · precio_unidad int · descuento int(%)
                 stock int CHECK(stock>=0) · creado_en timestamptz
 producto_imagenes  id · producto_id FK→productos ON DELETE CASCADE · public_id · url · orden
-salidas         id uuid PK · fecha date · total int · factura · tienda
+salidas         id serial PK · fecha date · total int · factura · tienda
 salida_imagenes    id · salida_id FK→salidas ON DELETE CASCADE · public_id · url · orden
-ventas          id uuid PK · fecha date UNIQUE · total int · total_pinateria int
+ventas          id serial PK · fecha date UNIQUE · total int · total_pinateria int
                 total_papeleria int · total_transferencias int
 ```
 
@@ -34,7 +34,7 @@ ventas          id uuid PK · fecha date UNIQUE · total int · total_pinateria 
 ## Convenciones de entidades
 
 - Columnas en `snake_case` (`@Column({ name: 'precio_unidad' })`), propiedades en `camelCase`.
-- `@PrimaryGeneratedColumn('uuid')`; el JSON expone `id` string.
+- `@PrimaryGeneratedColumn("increment")`; el JSON expone `id` numérico.
 - Índices explícitos con `@Index` para filtros reales (`salidas.fecha`, `productos.categoria`).
 - Relaciones: `@OneToMany(() => ProductoImagen, i => i.producto, { cascade: true })` y `@ManyToOne(..., { onDelete: 'CASCADE' })`.
 - Nunca devolver la entidad cruda al cliente si tiene campos internos: usar DTO de salida.

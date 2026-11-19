@@ -22,7 +22,7 @@ description: Principios y checklist de calidad para escribir o modificar código
 - Fechas de negocio: `date` (`YYYY-MM-DD`). Instantes: `timestamptz` UTC.
 - Dinero: enteros en pesos (COP no usa decimales).
 - Imágenes: relación 1:N con tabla hija; la API expone `imagenes: [{ publicId, url }]`.
-- IDs: `uuid`, expuestos como `id` string.
+- IDs: enteros autoincrementales (`serial`), expuestos como `id` numérico.
 - Logs con `Logger` de Nest, nunca `console.log`.
 
 ## Checklist antes de dar por terminada una tarea
