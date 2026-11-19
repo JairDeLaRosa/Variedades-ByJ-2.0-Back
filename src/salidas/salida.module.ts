@@ -1,15 +1,13 @@
 import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { SalidaService } from "./salida.service";
 import { SalidaController } from "./salida.controller";
-import { Salida, SalidaSchema } from "./salida.schema";
-import { CloudinaryModule } from "src/cloudinary/cloudinary.modulo";
+import { Salida } from "./salida.entity";
+import { SalidaImagen } from "./salida-imagen.entity";
+import { FilesModule } from "../files/files.module";
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: Salida.name, schema: SalidaSchema }]),
-    CloudinaryModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Salida, SalidaImagen]), FilesModule],
   controllers: [SalidaController],
   providers: [SalidaService],
 })

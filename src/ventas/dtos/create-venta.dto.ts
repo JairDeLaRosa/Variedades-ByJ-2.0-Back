@@ -25,12 +25,6 @@ export class CreateVentaDto {
   totalTransferencias: number;
 }
 
-export class VentasByMonthQueryDto {
-  /** Mes en formato `YYYY-MM`. */
-  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: "date debe ser YYYY-MM" })
-  date: string;
-}
-
 export interface ResponseCreateRPT {
   ok: boolean;
   msg: string;

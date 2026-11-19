@@ -1,19 +1,24 @@
 import {
-  Controller,
-  Post,
   Body,
-  Get,
-  Param,
+  Controller,
   Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseIntPipe,
+  Post,
   Put,
   Query,
-  HttpException,
-  HttpStatus,
+  UseGuards,
 } from "@nestjs/common";
 import { SalidaService } from "./salida.service";
 import { CreateSalidaDto } from "./dtos/create-salida.dto";
+import { MonthQueryDto } from "../common/dtos/month-query.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminGuard } from "../auth/guards/admin.guard";
 
 @Controller("api/salidas")
+@UseGuards(JwtAuthGuard, AdminGuard)
 export class SalidaController {
   constructor(private readonly salidaService: SalidaService) {}
 
@@ -28,34 +33,26 @@ export class SalidaController {
   }
 
   @Get("by-month")
-  getByMonth(@Query("date") date: string) {
-    // date = "2025-12"
-    const [yearStr, monthStr] = date.split("-");
-
-    const year = Number(yearStr);
-    const month = Number(monthStr);
-
-    if (!year || !month || month < 1 || month > 12) {
-      throw new HttpException(
-        "Fecha inválida. Use formato YYYY-MM.",
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    return this.salidaService.getByMonth(month, year);
+  getByMonth(@Query() { date }: MonthQueryDto) {
+    return this.salidaService.getByMonth(date);
   }
+
   @Get(":id")
-  findOne(@Param("id") id: string) {
+  findOne(@Param("id", ParseIntPipe) id: number) {
     return this.salidaService.findOne(id);
   }
 
   @Put(":id")
-  update(@Param("id") id: string, @Body() updateSalidaDto: CreateSalidaDto) {
+  update(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateSalidaDto: CreateSalidaDto,
+  ) {
     return this.salidaService.update(id, updateSalidaDto);
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
+  @HttpCode(204)
+  remove(@Param("id", ParseIntPipe) id: number) {
     return this.salidaService.remove(id);
   }
 }
