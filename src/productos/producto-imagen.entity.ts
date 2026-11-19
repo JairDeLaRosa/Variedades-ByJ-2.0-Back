@@ -1,4 +1,10 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Producto } from "./producto.entity";
 
 /** Foto de un producto, guardada en Cloudinary. */
@@ -11,6 +17,7 @@ export class ProductoImagen {
     onDelete: "CASCADE",
     orphanedRowAction: "delete",
   })
+  @JoinColumn({ name: "producto_id" })
   producto: Producto;
 
   @Column({ name: "public_id", type: "text", unique: true })

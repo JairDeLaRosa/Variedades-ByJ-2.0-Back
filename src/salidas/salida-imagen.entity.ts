@@ -1,4 +1,10 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Salida } from "./salida.entity";
 
 /** Soporte (imagen o PDF) de una salida, guardado en Cloudinary. */
@@ -11,6 +17,7 @@ export class SalidaImagen {
     onDelete: "CASCADE",
     orphanedRowAction: "delete",
   })
+  @JoinColumn({ name: "salida_id" })
   salida: Salida;
 
   @Column({ name: "public_id", type: "text", unique: true })
