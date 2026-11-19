@@ -2,9 +2,9 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
-import { MongooseModule } from "@nestjs/mongoose";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthService } from "./auth.service";
-import { Usuario, UsuarioSchema } from "./entities/usuario.entity";
+import { Usuario } from "./entities/usuario.entity";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 import { AuthController } from "./auth.controller";
 
@@ -13,11 +13,11 @@ import { AuthController } from "./auth.controller";
   providers: [AuthService, JwtStrategy],
   imports: [
     ConfigModule,
-    MongooseModule.forFeature([{ name: Usuario.name, schema: UsuarioSchema }]),
+    TypeOrmModule.forFeature([Usuario]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>("SECRET_JWT_SEED"),
         signOptions: { expiresIn: "2h" },
       }),
