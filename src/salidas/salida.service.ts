@@ -7,7 +7,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { rangoDelMes } from "../common/month-range";
 import { FilesService } from "../files/files.service";
-import { CreateSalidaDto, ImagenDto } from "./dtos/create-salida.dto";
+import { ImagenDto } from "../common/dtos/imagen.dto";
+import { CreateSalidaDto } from "./dtos/create-salida.dto";
 import { SalidaImagen } from "./salida-imagen.entity";
 import { Salida } from "./salida.entity";
 

@@ -6,10 +6,7 @@ export const envValidationSchema = Joi.object({
     .default("development"),
   PORT: Joi.number().port().default(3000),
 
-  // Base de datos actual (MongoDB). Se elimina al terminar la migración.
-  DB_CONECT: Joi.string().required(),
-
-  // Base de datos nueva (PostgreSQL).
+  // Base de datos (PostgreSQL).
   DATABASE_URL: Joi.string().uri().required(),
   DATABASE_URL_UNPOOLED: Joi.string().uri(),
   DB_SSL: Joi.boolean().default(true),

@@ -1,128 +1,100 @@
-import { Injectable, HttpException, HttpStatus, Inject } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Producto, ProductoDocument } from "./producto.schema";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ImagenDto } from "../common/dtos/imagen.dto";
+import { FilesService } from "../files/files.service";
 import { CreateProductoDto } from "./dtos/create-producto.dto";
+import { ProductoImagen } from "./producto-imagen.entity";
+import { Producto } from "./producto.entity";
+
+const PG_UNIQUE_VIOLATION = "23505";
 
 @Injectable()
 export class ProductoService {
   constructor(
-    @InjectModel(Producto.name) private productosModel: Model<ProductoDocument>,
+    @InjectRepository(Producto)
+    private readonly productos: Repository<Producto>,
+    private readonly files: FilesService,
   ) {}
 
-  async create(createProductoDto: CreateProductoDto) {
-    try {
-      const {
-        publicIds,
-        urls,
-        categoria,
-        descripcion,
-        descuento,
-        nombre,
-        precioUnidad,
-        stock,
-      } = createProductoDto;
-
-      const nuevoProducto = await this.productosModel.create({
-        categoria,
-        descuento: Number(descuento),
-        precioUnidad: Number(precioUnidad),
-        stock: Number(stock),
-        descripcion,
-        nombre,
-        publicIds,
-        urls,
-        fecha: new Date().toISOString(),
-      });
-
-      return nuevoProducto;
-    } catch (error) {
-      throw new HttpException(
-        `Error al crear producto: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  create(dto: CreateProductoDto): Promise<Producto> {
+    return this.guardar(
+      this.productos.create({
+        ...this.datos(dto),
+        imagenes: dto.imagenes.map((i) => this.imagen(i)),
+      }),
+    );
   }
 
-  // async findAll() {
-  //   try {
-  //     return await this.salidasModel.find().exec();
-  //   } catch (error) {
-  //     throw new HttpException(
-  //       `Error al buscar salidas: ${error.message}`,
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   }
-  // }
+  findAll(categoria?: string): Promise<Producto[]> {
+    return this.productos.find({
+      where: categoria ? { categoria } : {},
+      order: { id: "DESC", imagenes: { id: "ASC" } },
+    });
+  }
 
-  // async findOne(id: string) {
-  //   try {
-  //     const salida = await this.salidasModel.findById(id).exec();
-  //     if (!salida) {
-  //       throw new HttpException("Salida no encontrada", HttpStatus.NOT_FOUND);
-  //     }
-  //     return salida;
-  //   } catch (error) {
-  //     throw new HttpException(
-  //       `Error al buscar salida: ${error.message}`,
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   }
-  // }
+  async findOne(id: number): Promise<Producto> {
+    const producto = await this.productos.findOne({
+      where: { id },
+      order: { imagenes: { id: "ASC" } },
+    });
+    if (!producto) {
+      throw new NotFoundException("El producto no existe.");
+    }
+    return producto;
+  }
 
-  // async update(id: string, updateSalidaDto: CreateSalidaDto) {
-  //   try {
-  //     const salidasActualizada = await this.salidasModel
-  //       .findByIdAndUpdate(id, updateSalidaDto, { new: true })
-  //       .exec();
+  /** Reemplaza los datos y las fotos; borra de Cloudinary las que sobran. */
+  async update(id: number, dto: CreateProductoDto): Promise<Producto> {
+    const producto = await this.findOne(id);
+    const anteriores = producto.imagenes;
+    const nuevas = new Set(dto.imagenes.map((i) => i.publicId));
 
-  //     if (!salidasActualizada) {
-  //       throw new HttpException("Salida no encontrada", HttpStatus.NOT_FOUND);
-  //     }
+    Object.assign(producto, this.datos(dto));
+    producto.imagenes = dto.imagenes.map(
+      (i) =>
+        anteriores.find((a) => a.publicId === i.publicId) ?? this.imagen(i),
+    );
 
-  //     return salidasActualizada;
-  //   } catch (error) {
-  //     throw new HttpException(
-  //       `Error al actualizar salida: ${error.message}`,
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   }
-  // }
+    const guardado = await this.guardar(producto);
 
-  // async remove(id: string) {
-  //   try {
-  //     const salidaEliminada = await this.salidasModel
-  //       .findByIdAndDelete(id)
-  //       .exec();
+    await this.files.deleteFiles(
+      anteriores.map((a) => a.publicId).filter((p) => !nuevas.has(p)),
+    );
+    return guardado;
+  }
 
-  //     if (!salidaEliminada) {
-  //       throw new HttpException("Salida no encontrada", HttpStatus.NOT_FOUND);
-  //     }
+  async remove(id: number): Promise<void> {
+    const producto = await this.findOne(id);
+    await this.productos.remove(producto);
+    await this.files.deleteFiles(producto.imagenes.map((i) => i.publicId));
+  }
 
-  //     return {
-  //       message: "Salida eliminada correctamente",
-  //       data: salidaEliminada,
-  //     };
-  //   } catch (error) {
-  //     throw new HttpException(
-  //       `Error al eliminar salida: ${error.message}`,
-  //       HttpStatus.INTERNAL_SERVER_ERROR,
-  //     );
-  //   }
-  // }
+  private datos(dto: CreateProductoDto) {
+    const { nombre, descripcion, categoria, precioUnidad, stock, descuento } =
+      dto;
+    return { nombre, descripcion, categoria, precioUnidad, stock, descuento };
+  }
 
-  // async getByMonth(month: number, year: number): Promise<Salida[]> {
-  //   const m = String(month).padStart(2, "0");
-  //   const start = `${year}-${m}-01`;
+  private imagen({ publicId, url }: ImagenDto): ProductoImagen {
+    return Object.assign(new ProductoImagen(), { publicId, url });
+  }
 
-  //   const nextMonth = month === 12 ? 1 : month + 1;
-  //   const nextYear = month === 12 ? year + 1 : year;
-  //   const nm = String(nextMonth).padStart(2, "0");
-  //   const end = `${nextYear}-${nm}-01`;
-
-  //   return this.salidasModel
-  //     .find({ fecha: { $gte: start, $lt: end } })
-  //     .sort({ fecha: -1 })
-  //     .exec();
-  // }
+  private async guardar(producto: Producto): Promise<Producto> {
+    try {
+      return await this.productos.save(producto);
+    } catch (error) {
+      // La misma foto ya está asociada a otro producto.
+      if (error?.code === PG_UNIQUE_VIOLATION) {
+        throw new ConflictException(
+          "Alguna de las fotos ya está asociada a otro producto.",
+        );
+      }
+      throw error;
+    }
+  }
 }

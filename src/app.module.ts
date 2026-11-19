@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { typeOrmConfig } from "./database/typeorm.config";
-import { MongooseModule } from "@nestjs/mongoose";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
 import { VentasModule } from "./ventas/ventas.module";
@@ -18,7 +17,6 @@ import { envValidationSchema } from "./config/env.validation";
       envFilePath: [".env.local", ".env"],
       validationSchema: envValidationSchema,
     }),
-    MongooseModule.forRoot(process.env.DB_CONECT),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: typeOrmConfig,
