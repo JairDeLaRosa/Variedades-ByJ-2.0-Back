@@ -1,61 +1,55 @@
 import {
-  Controller,
-  Post,
   Body,
-  Get,
-  Param,
+  Controller,
   Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseIntPipe,
+  Post,
   Put,
   Query,
-  HttpException,
-  HttpStatus,
+  UseGuards,
 } from "@nestjs/common";
 import { ProductoService } from "./producto.service";
 import { CreateProductoDto } from "./dtos/create-producto.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminGuard } from "../auth/guards/admin.guard";
 
 @Controller("api/productos")
 export class ProductoController {
-  constructor(private readonly salidaService: ProductoService) {}
+  constructor(private readonly productoService: ProductoService) {}
 
-  @Post()
-  create(@Body() createProductoDto: CreateProductoDto) {
-    return this.salidaService.create(createProductoDto);
+  // El catálogo es público: la tienda lo consulta sin sesión.
+  @Get()
+  findAll(@Query("categoria") categoria?: string) {
+    return this.productoService.findAll(categoria);
   }
 
-  // @Get()
-  // findAll() {
-  //   return this.salidaService.findAll();
-  // }
+  @Get(":id")
+  findOne(@Param("id", ParseIntPipe) id: number) {
+    return this.productoService.findOne(id);
+  }
 
-  // @Get("by-month")
-  // getByMonth(@Query("date") date: string) {
-  //   // date = "2025-12"
-  //   const [yearStr, monthStr] = date.split("-");
+  @Post()
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  create(@Body() createProductoDto: CreateProductoDto) {
+    return this.productoService.create(createProductoDto);
+  }
 
-  //   const year = Number(yearStr);
-  //   const month = Number(monthStr);
+  @Put(":id")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  update(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateProductoDto: CreateProductoDto,
+  ) {
+    return this.productoService.update(id, updateProductoDto);
+  }
 
-  //   if (!year || !month || month < 1 || month > 12) {
-  //     throw new HttpException(
-  //       "Fecha inválida. Use formato YYYY-MM.",
-  //       HttpStatus.BAD_REQUEST,
-  //     );
-  //   }
-
-  //   return this.salidaService.getByMonth(month, year);
-  // }
-  // @Get(":id")
-  // findOne(@Param("id") id: string) {
-  //   return this.salidaService.findOne(id);
-  // }
-
-  // @Put(":id")
-  // update(@Param("id") id: string, @Body() updateSalidaDto: CreateSalidaDto) {
-  //   return this.salidaService.update(id, updateSalidaDto);
-  // }
-
-  // @Delete(":id")
-  // remove(@Param("id") id: string) {
-  //   return this.salidaService.remove(id);
-  // }
+  @Delete(":id")
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  remove(@Param("id", ParseIntPipe) id: number) {
+    return this.productoService.remove(id);
+  }
 }

@@ -1,27 +1,54 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from "class-validator";
+import { ImagenDto } from "../../common/dtos/imagen.dto";
 
 export class CreateProductoDto {
-  @ApiProperty({ example: "Piñata" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
   nombre: string;
 
-  @ApiProperty({ example: 3000 })
-  precioUnidad: number;
-
-  @ApiProperty({ example: 100 })
-  stock: number;
-
-  @ApiProperty({ example: "Piñata para fiestas de niña" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
   descripcion: string;
 
-  @ApiProperty({ example: "Piñateria" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
   categoria: string;
 
-  @ApiProperty({ example: 10 })
-  descuento: number;
+  @IsInt()
+  @Min(0)
+  @Max(2_000_000_000)
+  precioUnidad: number;
 
-  @ApiProperty({ example: "fwkjfuhgwkjfw" })
-  publicIds: string;
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  stock: number;
 
-  @ApiProperty({ example: "fwkjfuhgwkjfw" })
-  urls: string;
+  /** Porcentaje de 0 a 100. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  descuento?: number;
+
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => ImagenDto)
+  imagenes: ImagenDto[];
 }
