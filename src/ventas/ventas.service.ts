@@ -1,94 +1,88 @@
-import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Venta, VentaDocument } from "./ventas.schema";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Venta } from "./ventas.entity";
 import { CreateVentaDto, ResponseCreateRPT } from "./dtos/create-venta.dto";
+
+const PG_UNIQUE_VIOLATION = "23505";
 
 @Injectable()
 export class VentasService {
   constructor(
-    @InjectModel(Venta.name) private ventaModel: Model<VentaDocument>,
+    @InjectRepository(Venta) private readonly ventas: Repository<Venta>,
   ) {}
 
-  async create(createVentaDto: CreateVentaDto): Promise<ResponseCreateRPT> {
+  /** Crea el cierre del día, o lo actualiza si ya existía uno para esa fecha. */
+  async create(dto: CreateVentaDto): Promise<ResponseCreateRPT> {
+    const montos = {
+      totalPinateria: dto.totalPinateria,
+      totalPapeleria: dto.totalPapeleria,
+      totalTransferencias: dto.totalTransferencias,
+      // El total siempre se calcula aquí, nunca se confía en el cliente.
+      total: dto.totalPinateria + dto.totalPapeleria + dto.totalTransferencias,
+    };
+
+    const existente = await this.ventas.findOneBy({ fecha: dto.fecha });
+    const venta = this.ventas.create({
+      ...(existente ?? { fecha: dto.fecha }),
+      ...montos,
+    });
+
     try {
-      const fecha = new Date(`${createVentaDto.fecha}T00:00:00-05:00`); // Colombia
-
-      if (isNaN(fecha.getTime())) {
-        throw new HttpException(
-          "La fecha proporcionada no es válida.",
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      const fechaDia = fecha.toLocaleDateString("sv-SE", {
-        timeZone: "America/Bogota",
-      });
-
-      const existingVenta = await this.ventaModel.findOne({ fechaDia });
-
-      let resDb;
-      let msg;
-
-      if (existingVenta) {
-        const updateData = {
-          ...createVentaDto,
-          fecha,
-          fechaDia,
-        };
-
-        resDb = await this.ventaModel.findByIdAndUpdate(
-          existingVenta._id,
-          updateData,
-          { new: true },
-        );
-
-        msg = "Registro actualizado.";
-      } else {
-        const venta = new this.ventaModel({
-          ...createVentaDto,
-          fecha,
-          fechaDia,
-        });
-
-        resDb = await venta.save();
-        msg = "Registro creado.";
-      }
-
+      const data = await this.ventas.save(venta);
       return {
-        data: resDb,
         ok: true,
-        msg,
+        msg: existente ? "Registro actualizado." : "Registro creado.",
+        data,
       };
     } catch (error) {
+      // Dos cierres simultáneos del mismo día: gana el índice único.
+      if (error?.code === PG_UNIQUE_VIOLATION) {
+        throw new ConflictException("Ya existe una venta para esa fecha.");
+      }
       throw error;
     }
   }
 
-  async findAll(): Promise<Venta[]> {
-    return this.ventaModel.find().exec();
+  findAll(): Promise<Venta[]> {
+    return this.ventas.find({ order: { fecha: "DESC" } });
   }
 
-  async findOne(id: string): Promise<Venta> {
-    return this.ventaModel.findById(id).exec();
+  async findOne(id: number): Promise<Venta> {
+    const venta = await this.ventas.findOneBy({ id });
+    if (!venta) {
+      throw new NotFoundException("La venta no existe.");
+    }
+    return venta;
   }
 
-  async remove(id: string): Promise<void> {
-    await this.ventaModel.findByIdAndDelete(id).exec();
+  async remove(id: number): Promise<void> {
+    const { affected } = await this.ventas.delete({ id });
+    if (!affected) {
+      throw new NotFoundException("La venta no existe.");
+    }
   }
 
-  async getByMonth(month: number, year: number): Promise<Venta[]> {
-    const m = String(month).padStart(2, "0");
-    const start = `${year}-${m}-01`;
+  /** Ventas de un mes (`YYYY-MM`), de la más reciente a la más antigua. */
+  getByMonth(mes: string): Promise<Venta[]> {
+    const [year, month] = mes.split("-").map(Number);
+    const desde = `${mes}-01`;
+    const hasta =
+      month === 12
+        ? `${year + 1}-01-01`
+        : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
-    const nextMonth = month === 12 ? 1 : month + 1;
-    const nextYear = month === 12 ? year + 1 : year;
-    const nm = String(nextMonth).padStart(2, "0");
-    const end = `${nextYear}-${nm}-01`;
-
-    return this.ventaModel
-      .find({ fechaDia: { $gte: start, $lt: end } })
-      .sort({ fechaDia: -1 })
-      .exec();
+    return this.ventas
+      .createQueryBuilder("venta")
+      .where("venta.fecha >= :desde AND venta.fecha < :hasta", {
+        desde,
+        hasta,
+      })
+      .orderBy("venta.fecha", "DESC")
+      .getMany();
   }
 }

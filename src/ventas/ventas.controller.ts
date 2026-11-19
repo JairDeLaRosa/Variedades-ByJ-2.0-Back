@@ -1,18 +1,22 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseIntPipe,
+  Post,
   Query,
-  HttpException,
-  HttpStatus,
+  UseGuards,
 } from "@nestjs/common";
 import { VentasService } from "./ventas.service";
-import { CreateVentaDto } from "./dtos/create-venta.dto";
+import { CreateVentaDto, VentasByMonthQueryDto } from "./dtos/create-venta.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminGuard } from "../auth/guards/admin.guard";
 
 @Controller("api/ventas")
+@UseGuards(JwtAuthGuard, AdminGuard)
 export class VentasController {
   constructor(private readonly ventasService: VentasService) {}
 
@@ -25,30 +29,20 @@ export class VentasController {
   findAll() {
     return this.ventasService.findAll();
   }
+
   @Get("by-month")
-  getByMonth(@Query("date") date: string) {
-    // date = "2025-12"
-    const [yearStr, monthStr] = date.split("-");
-
-    const year = Number(yearStr);
-    const month = Number(monthStr);
-
-    if (!year || !month || month < 1 || month > 12) {
-      throw new HttpException(
-        "Fecha inválida. Use formato YYYY-MM.",
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    return this.ventasService.getByMonth(month, year);
+  getByMonth(@Query() { date }: VentasByMonthQueryDto) {
+    return this.ventasService.getByMonth(date);
   }
+
   @Get(":id")
-  findOne(@Param("id") id: string) {
+  findOne(@Param("id", ParseIntPipe) id: number) {
     return this.ventasService.findOne(id);
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
+  @HttpCode(204)
+  remove(@Param("id", ParseIntPipe) id: number) {
     return this.ventasService.remove(id);
   }
 }
