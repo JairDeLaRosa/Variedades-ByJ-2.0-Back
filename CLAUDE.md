@@ -6,7 +6,7 @@ El frontend vive en el repo `Variedades-ByJ-2.0-web`.
 ## Stack
 
 - NestJS 11 + Express 5, TypeScript 5.9, npm.
-- Datos: migrando de MongoDB/Mongoose a **PostgreSQL con TypeORM** (Neon en producción). Ver `docs/adr/`.
+- Datos: **PostgreSQL con TypeORM** (Neon en producción), migrado desde MongoDB. Ver `docs/adr/`.
 - Auth: Passport JWT + bcryptjs. Archivos: Cloudinary. Docs de la API: Swagger en `/api`.
 
 ## Arquitectura

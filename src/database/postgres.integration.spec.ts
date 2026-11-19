@@ -28,7 +28,6 @@ describeConBase("PostgreSQL (integración)", () => {
           envFilePath: [".env.local", ".env"],
           validationSchema: envValidationSchema.fork(
             [
-              "DB_CONECT",
               "SECRET_JWT_SEED",
               "CLOUDINARY_NAME",
               "CLOUDINARY_API_KEY",
