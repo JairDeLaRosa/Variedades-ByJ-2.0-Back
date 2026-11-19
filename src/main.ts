@@ -1,26 +1,38 @@
 import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
-import { ValidationPipe } from "@nestjs/common";
-import * as dotenv from "dotenv";
+import { ConfigService } from "@nestjs/config";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
 
-dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
 
-  const config = new DocumentBuilder()
-    .setTitle("API Variedades ByJ")
-    .setDescription("Documentación de la API")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .build();
+  if (config.get<boolean>("SWAGGER_ENABLED")) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle("API Variedades ByJ")
+      .setDescription("Documentación de la API")
+      .setVersion("1.0")
+      .addBearerAuth()
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api", app, document);
+    SwaggerModule.setup(
+      "api",
+      app,
+      SwaggerModule.createDocument(app, swaggerConfig),
+    );
+  }
+
   app.useGlobalPipes(new ValidationPipe());
-  app.enableCors();
+  app.enableCors({
+    origin: config
+      .get<string>("CORS_ORIGINS")
+      .split(",")
+      .map((origin) => origin.trim()),
+  });
 
-  await app.listen(process.env.PORT || 3000);
-  console.log(`Servidor corriendo en el puerto ${process.env.PORT || 3000}`);
+  const port = config.get<number>("PORT");
+  await app.listen(port);
+  new Logger("Bootstrap").log(`Servidor corriendo en el puerto ${port}`);
 }
 bootstrap();

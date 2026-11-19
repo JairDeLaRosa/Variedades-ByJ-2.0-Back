@@ -1,17 +1,28 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { typeOrmConfig } from "./database/typeorm.config";
 import { MongooseModule } from "@nestjs/mongoose";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
 import { VentasModule } from "./ventas/ventas.module";
 import { SalidaModule } from "./salidas/salida.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.modulo";
 import { FilesModule } from "./files/files.module";
 import { ProductoModule } from "./productos/producto.module";
+import { envValidationSchema } from "./config/env.validation";
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [".env.local", ".env"],
+      validationSchema: envValidationSchema,
+    }),
     MongooseModule.forRoot(process.env.DB_CONECT),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: typeOrmConfig,
+    }),
     AuthModule,
     VentasModule,
     CloudinaryModule,
