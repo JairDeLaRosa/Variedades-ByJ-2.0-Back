@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { rangoDelMes } from "../common/month-range";
 import { Venta } from "./ventas.entity";
 import { CreateVentaDto, ResponseCreateRPT } from "./dtos/create-venta.dto";
 
@@ -69,12 +70,7 @@ export class VentasService {
 
   /** Ventas de un mes (`YYYY-MM`), de la más reciente a la más antigua. */
   getByMonth(mes: string): Promise<Venta[]> {
-    const [year, month] = mes.split("-").map(Number);
-    const desde = `${mes}-01`;
-    const hasta =
-      month === 12
-        ? `${year + 1}-01-01`
-        : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const { desde, hasta } = rangoDelMes(mes);
 
     return this.ventas
       .createQueryBuilder("venta")

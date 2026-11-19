@@ -11,7 +11,8 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { VentasService } from "./ventas.service";
-import { CreateVentaDto, VentasByMonthQueryDto } from "./dtos/create-venta.dto";
+import { CreateVentaDto } from "./dtos/create-venta.dto";
+import { MonthQueryDto } from "../common/dtos/month-query.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AdminGuard } from "../auth/guards/admin.guard";
 
@@ -31,7 +32,7 @@ export class VentasController {
   }
 
   @Get("by-month")
-  getByMonth(@Query() { date }: VentasByMonthQueryDto) {
+  getByMonth(@Query() { date }: MonthQueryDto) {
     return this.ventasService.getByMonth(date);
   }
 
