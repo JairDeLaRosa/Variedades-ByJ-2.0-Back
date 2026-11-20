@@ -8,6 +8,7 @@ import { SalidaModule } from "./salidas/salida.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.modulo";
 import { FilesModule } from "./files/files.module";
 import { ProductoModule } from "./productos/producto.module";
+import { ReportesModule } from "./reportes/reportes.module";
 import { envValidationSchema } from "./config/env.validation";
 
 @Module({
@@ -27,6 +28,7 @@ import { envValidationSchema } from "./config/env.validation";
     SalidaModule,
     FilesModule,
     ProductoModule,
+    ReportesModule,
   ],
 })
 export class AppModule {}
