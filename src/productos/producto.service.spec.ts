@@ -1,4 +1,9 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
+import { ModoAjuste } from "./dtos/ajustar-stock.dto";
 import { ProductoService } from "./producto.service";
 
 const imagen = (n: number) => ({
@@ -7,7 +12,17 @@ const imagen = (n: number) => ({
 });
 
 describe("ProductoService", () => {
+  // Cadena del QueryBuilder de TypeORM que usa ajustarStock.
+  const consulta = {
+    update: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    setParameter: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    execute: jest.fn(),
+  };
   const productos = {
+    createQueryBuilder: jest.fn(() => consulta),
     create: jest.fn((datos) => ({ ...datos })),
     save: jest.fn((producto) => Promise.resolve({ id: 1, ...producto })),
     findOne: jest.fn(),
@@ -126,6 +141,73 @@ describe("ProductoService", () => {
 
       await expect(service.remove(5)).rejects.toThrow("caída");
       expect(files.deleteFiles).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ajustarStock", () => {
+    it("suma al stock actual en una sola sentencia", async () => {
+      consulta.execute.mockResolvedValue({ affected: 1 });
+      productos.findOne.mockResolvedValue({ id: 5, stock: 15 });
+
+      const res = await service.ajustarStock(5, {
+        modo: ModoAjuste.Sumar,
+        cantidad: 10,
+      });
+
+      expect(res.stock).toBe(15);
+      expect(consulta.set.mock.calls[0][0].stock()).toBe("stock + :cantidad");
+      expect(consulta.setParameter).toHaveBeenCalledWith("cantidad", 10);
+      expect(consulta.andWhere).toHaveBeenCalledWith(
+        "stock + :cantidad <= :maximo",
+        { maximo: 1_000_000 },
+      );
+    });
+
+    it("resta solo si alcanza el stock", async () => {
+      consulta.execute.mockResolvedValue({ affected: 1 });
+      productos.findOne.mockResolvedValue({ id: 5, stock: 2 });
+
+      await service.ajustarStock(5, { modo: ModoAjuste.Restar, cantidad: 3 });
+
+      expect(consulta.set.mock.calls[0][0].stock()).toBe("stock - :cantidad");
+      expect(consulta.andWhere).toHaveBeenCalledWith("stock >= :cantidad");
+    });
+
+    it("fija el stock en la cantidad indicada", async () => {
+      consulta.execute.mockResolvedValue({ affected: 1 });
+      productos.findOne.mockResolvedValue({ id: 5, stock: 7 });
+
+      await service.ajustarStock(5, { modo: ModoAjuste.Fijar, cantidad: 7 });
+
+      expect(consulta.set).toHaveBeenCalledWith({ stock: 7 });
+      expect(consulta.andWhere).not.toHaveBeenCalled();
+    });
+
+    it("responde 400 si se resta más de lo que hay", async () => {
+      consulta.execute.mockResolvedValue({ affected: 0 });
+      productos.findOne.mockResolvedValue({ id: 5, stock: 2 });
+
+      await expect(
+        service.ajustarStock(5, { modo: ModoAjuste.Restar, cantidad: 9 }),
+      ).rejects.toThrow(/quedan 2 unidades/);
+    });
+
+    it("responde 400 si la suma pasa del tope", async () => {
+      consulta.execute.mockResolvedValue({ affected: 0 });
+      productos.findOne.mockResolvedValue({ id: 5, stock: 999_999 });
+
+      await expect(
+        service.ajustarStock(5, { modo: ModoAjuste.Sumar, cantidad: 5 }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("lanza 404 si el producto no existe", async () => {
+      consulta.execute.mockResolvedValue({ affected: 0 });
+      productos.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.ajustarStock(99, { modo: ModoAjuste.Sumar, cantidad: 1 }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });
