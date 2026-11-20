@@ -12,7 +12,7 @@ El frontend vive en el repo `Variedades-ByJ-2.0-web`.
 ## Arquitectura
 
 Un módulo por dominio en `src/<dominio>/`: `controller` → `service` → entidad TypeORM, más `dtos/`.
-`auth`, `productos`, `salidas`, `ventas`, `files`, `cloudinary`. La lógica va en el service, nunca en el controller.
+`auth`, `productos`, `salidas`, `ventas`, `reportes`, `files`, `cloudinary`. La lógica va en el service, nunca en el controller.
 
 ## Comandos
 
