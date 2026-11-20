@@ -1,0 +1,37 @@
+# Blueprint de Render para la API de Variedades ByJ.
+# Los valores con `sync: false` son secretos o dependen de la URL de la web:
+# Render los pide en el panel al crear el Blueprint y nunca se guardan aquí.
+services:
+  - type: web
+    name: variedades-byj-api
+    runtime: node
+    # Misma región de AWS que la base de datos de Neon (us-east-2, Ohio).
+    region: ohio
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    # Despliega solo cuando el CI de GitHub pasa.
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 20.20.0
+      - key: NODE_ENV
+        value: production
+      - key: SWAGGER_ENABLED
+        value: "false"
+      # Lo genera Render: nadie lo ve ni lo escribe.
+      - key: SECRET_JWT_SEED
+        generateValue: true
+      # Conexión con pooler de la rama production de Neon.
+      - key: DATABASE_URL
+        sync: false
+      - key: CLOUDINARY_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # URL de la web desplegada, por ejemplo https://variedades-byj.pages.dev
+      - key: CORS_ORIGINS
+        sync: false
