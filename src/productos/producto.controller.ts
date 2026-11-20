@@ -6,12 +6,14 @@ import {
   HttpCode,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
 import { ProductoService } from "./producto.service";
+import { AjustarStockDto } from "./dtos/ajustar-stock.dto";
 import { CreateProductoDto } from "./dtos/create-producto.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AdminGuard } from "../auth/guards/admin.guard";
@@ -44,6 +46,15 @@ export class ProductoController {
     @Body() updateProductoDto: CreateProductoDto,
   ) {
     return this.productoService.update(id, updateProductoDto);
+  }
+
+  @Patch(":id/stock")
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  ajustarStock(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() ajuste: AjustarStockDto,
+  ) {
+    return this.productoService.ajustarStock(id, ajuste);
   }
 
   @Delete(":id")

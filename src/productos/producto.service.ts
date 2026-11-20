@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,6 +8,11 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ImagenDto } from "../common/dtos/imagen.dto";
 import { FilesService } from "../files/files.service";
+import {
+  AjustarStockDto,
+  ModoAjuste,
+  STOCK_MAXIMO,
+} from "./dtos/ajustar-stock.dto";
 import { CreateProductoDto } from "./dtos/create-producto.dto";
 import { ProductoImagen } from "./producto-imagen.entity";
 import { Producto } from "./producto.entity";
@@ -66,6 +72,45 @@ export class ProductoService {
       anteriores.map((a) => a.publicId).filter((p) => !nuevas.has(p)),
     );
     return guardado;
+  }
+
+  /**
+   * Suma, resta o fija el stock en una sola sentencia SQL, así dos ajustes
+   * simultáneos no se pisan. Nunca deja el stock fuera de 0 a STOCK_MAXIMO.
+   */
+  async ajustarStock(
+    id: number,
+    { modo, cantidad }: AjustarStockDto,
+  ): Promise<Producto> {
+    const consulta = this.productos
+      .createQueryBuilder()
+      .update()
+      .where("id = :id", { id })
+      .setParameter("cantidad", cantidad);
+
+    if (modo === ModoAjuste.Sumar) {
+      consulta
+        .set({ stock: () => "stock + :cantidad" })
+        .andWhere("stock + :cantidad <= :maximo", { maximo: STOCK_MAXIMO });
+    } else if (modo === ModoAjuste.Restar) {
+      consulta
+        .set({ stock: () => "stock - :cantidad" })
+        .andWhere("stock >= :cantidad");
+    } else {
+      consulta.set({ stock: cantidad });
+    }
+
+    const { affected } = await consulta.execute();
+    // Nada cambió: o el producto no existe (404) o el ajuste no cabe.
+    if (!affected) {
+      const actual = await this.findOne(id);
+      throw new BadRequestException(
+        modo === ModoAjuste.Restar
+          ? `No hay suficiente stock: quedan ${actual.stock} unidades.`
+          : `El stock no puede superar ${STOCK_MAXIMO} unidades.`,
+      );
+    }
+    return this.findOne(id);
   }
 
   async remove(id: number): Promise<void> {
