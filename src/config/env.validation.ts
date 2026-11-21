@@ -22,4 +22,8 @@ export const envValidationSchema = Joi.object({
     "http://localhost:5173,http://localhost:8080",
   ),
   SWAGGER_ENABLED: Joi.boolean().default(false),
+
+  // Cuántos proxys hay delante de la API (Render: 1). Define de dónde se lee
+  // la IP real del visitante para el límite de intentos.
+  TRUST_PROXY: Joi.number().integer().min(0).default(0),
 });

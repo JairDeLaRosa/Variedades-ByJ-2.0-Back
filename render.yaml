@@ -20,6 +20,9 @@ services:
         value: production
       - key: SWAGGER_ENABLED
         value: "false"
+      # Render pone un proxy delante: se confía en 1 para leer la IP real.
+      - key: TRUST_PROXY
+        value: "1"
       # Lo genera Render: nadie lo ve ni lo escribe.
       - key: SECRET_JWT_SEED
         generateValue: true
