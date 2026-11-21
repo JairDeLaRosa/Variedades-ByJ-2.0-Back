@@ -19,7 +19,7 @@ description: Guía de rendimiento y escalabilidad para consultas TypeORM/Postgre
 
 ## Aplicación
 
-- **Async correcto**: `Promise.all` para trabajo independiente (subida de varias imágenes a Cloudinary, ya usado en `files.controller`); secuencial cuando hay dependencia. Nunca `await` dentro de un bucle sobre una lista grande si se puede paralelizar con límite.
+- **Async correcto**: `Promise.all` para trabajo independiente (subida de varias imágenes a Cloudinary, ya usado en `FilesService.uploadAll`); secuencial cuando hay dependencia. Nunca `await` dentro de un bucle sobre una lista grande si se puede paralelizar con límite.
 - **Caché** solo donde aporte: catálogo de productos y reportes mensuales cerrados (datos que cambian poco). Con TTL y invalidación al escribir. No cachear nada con permisos por usuario sin la clave de usuario.
 - **Archivos**: límite de tamaño y de cantidad en Multer; el tráfico de imágenes lo sirve Cloudinary (CDN), no este servidor. Borrado en Cloudinary tolerante a fallos (no bloquear la respuesta por un archivo huérfano; registrar y seguir).
 - **Complejidad**: revisar bucles anidados sobre listas; preferir `Map`/`Set` para cruces.
