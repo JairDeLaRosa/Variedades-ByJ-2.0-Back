@@ -20,9 +20,10 @@ services:
         value: production
       - key: SWAGGER_ENABLED
         value: "false"
-      # Render pone un proxy delante: se confía en 1 para leer la IP real.
+      # Delante de la API hay 3 saltos (comprobado en producción: con 1 y 2 el
+      # límite de intentos no bloqueaba). Define de dónde se lee la IP real.
       - key: TRUST_PROXY
-        value: "1"
+        value: "3"
       # Lo genera Render: nadie lo ve ni lo escribe.
       - key: SECRET_JWT_SEED
         generateValue: true
