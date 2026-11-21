@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from "@nestjs/common";
 import { SalidaService } from "./salida.service";
 
 const imagen = (n: number) => ({
@@ -22,7 +26,15 @@ describe("SalidaService", () => {
     remove: jest.fn(),
     createQueryBuilder: jest.fn(() => consulta),
   };
-  const files = { deleteFiles: jest.fn().mockResolvedValue(undefined) };
+  // uploadAll devuelve img1, img2... según cuántos archivos lleguen.
+  const files = {
+    deleteFiles: jest.fn().mockResolvedValue(undefined),
+    validarLote: jest.fn(),
+    uploadAll: jest.fn((archivos: unknown[]) =>
+      Promise.resolve(archivos.map((_, i) => imagen(i + 1))),
+    ),
+  };
+  const archivo = () => ({ size: 100 }) as Express.Multer.File;
 
   let service: SalidaService;
 
@@ -31,7 +43,6 @@ describe("SalidaService", () => {
     total: 120000,
     factura: "F-100",
     tienda: "Papelería Central",
-    imagenes: [imagen(1), imagen(2)],
   };
 
   beforeEach(() => {
@@ -39,9 +50,12 @@ describe("SalidaService", () => {
     service = new SalidaService(salidas as never, files as never);
   });
 
-  it("crea la salida con sus soportes como filas hijas", async () => {
-    const res = await service.create(dto);
+  it("sube los soportes y los guarda como filas hijas", async () => {
+    const archivos = [archivo(), archivo()];
 
+    const res = await service.create(dto, archivos);
+
+    expect(files.validarLote).toHaveBeenCalledWith(archivos, 0);
     expect(res.imagenes.map((i) => i.publicId)).toEqual([
       "docs/img1",
       "docs/img2",
@@ -49,10 +63,21 @@ describe("SalidaService", () => {
     expect(files.deleteFiles).not.toHaveBeenCalled();
   });
 
+  it("borra de Cloudinary lo recién subido si la base falla", async () => {
+    salidas.save.mockRejectedValueOnce(new Error("caída"));
+
+    await expect(service.create(dto, [archivo(), archivo()])).rejects.toThrow(
+      "caída",
+    );
+    expect(files.deleteFiles).toHaveBeenCalledWith(["docs/img1", "docs/img2"]);
+  });
+
   it("responde 409 si un soporte ya pertenece a otra salida", async () => {
     salidas.save.mockRejectedValueOnce({ code: "23505" });
 
-    await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.create(dto, [archivo()])).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   describe("update", () => {
@@ -68,14 +93,17 @@ describe("SalidaService", () => {
       ],
     });
 
-    it("conserva los soportes que siguen y borra de Cloudinary los quitados", async () => {
+    it("conserva los indicados, suma los nuevos y borra los quitados", async () => {
       salidas.findOne.mockResolvedValue(existente());
+      files.uploadAll.mockResolvedValueOnce([imagen(3)]);
 
-      const res = await service.update(5, {
-        ...dto,
-        imagenes: [imagen(2), imagen(3)],
-      });
+      const res = await service.update(
+        5,
+        { ...dto, conservar: ["docs/img2"] },
+        [archivo()],
+      );
 
+      expect(files.validarLote).toHaveBeenCalledWith([expect.anything()], 1);
       expect(res.imagenes.map((i) => i.publicId)).toEqual([
         "docs/img2",
         "docs/img3",
@@ -85,14 +113,25 @@ describe("SalidaService", () => {
       expect(files.deleteFiles).toHaveBeenCalledWith(["docs/img1"]);
     });
 
-    it("no borra nada de Cloudinary si la base de datos falla", async () => {
+    it("si la base falla borra solo lo recién subido, no lo anterior", async () => {
       salidas.findOne.mockResolvedValue(existente());
+      files.uploadAll.mockResolvedValueOnce([imagen(3)]);
       salidas.save.mockRejectedValueOnce(new Error("caída"));
 
-      await expect(service.update(5, { ...dto, imagenes: [] })).rejects.toThrow(
-        "caída",
-      );
-      expect(files.deleteFiles).not.toHaveBeenCalled();
+      await expect(
+        service.update(5, { ...dto, conservar: ["docs/img1"] }, [archivo()]),
+      ).rejects.toThrow("caída");
+      expect(files.deleteFiles).toHaveBeenCalledTimes(1);
+      expect(files.deleteFiles).toHaveBeenCalledWith(["docs/img3"]);
+    });
+
+    it("responde 400 si conservar incluye un soporte ajeno", async () => {
+      salidas.findOne.mockResolvedValue(existente());
+
+      await expect(
+        service.update(5, { ...dto, conservar: ["docs/otro"] }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(files.uploadAll).not.toHaveBeenCalled();
     });
 
     it("lanza 404 si la salida no existe", async () => {

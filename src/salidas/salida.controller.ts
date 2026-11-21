@@ -9,8 +9,11 @@ import {
   Post,
   Put,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { interceptorArchivos } from "../files/archivos";
 import { SalidaService } from "./salida.service";
 import { CreateSalidaDto } from "./dtos/create-salida.dto";
 import { MonthQueryDto } from "../common/dtos/month-query.dto";
@@ -22,9 +25,14 @@ import { AdminGuard } from "../auth/guards/admin.guard";
 export class SalidaController {
   constructor(private readonly salidaService: SalidaService) {}
 
+  // multipart/form-data: campos de la salida + soportes nuevos en `imagenes`.
   @Post()
-  create(@Body() createSalidaDto: CreateSalidaDto) {
-    return this.salidaService.create(createSalidaDto);
+  @UseInterceptors(interceptorArchivos())
+  create(
+    @Body() createSalidaDto: CreateSalidaDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
+  ) {
+    return this.salidaService.create(createSalidaDto, archivos);
   }
 
   @Get()
@@ -43,11 +51,13 @@ export class SalidaController {
   }
 
   @Put(":id")
+  @UseInterceptors(interceptorArchivos())
   update(
     @Param("id", ParseIntPipe) id: number,
     @Body() updateSalidaDto: CreateSalidaDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
   ) {
-    return this.salidaService.update(id, updateSalidaDto);
+    return this.salidaService.update(id, updateSalidaDto, archivos);
   }
 
   @Delete(":id")

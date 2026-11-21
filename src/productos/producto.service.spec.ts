@@ -29,7 +29,15 @@ describe("ProductoService", () => {
     find: jest.fn().mockResolvedValue([]),
     remove: jest.fn(),
   };
-  const files = { deleteFiles: jest.fn().mockResolvedValue(undefined) };
+  // uploadAll devuelve foto1, foto2... según cuántos archivos lleguen.
+  const files = {
+    deleteFiles: jest.fn().mockResolvedValue(undefined),
+    validarLote: jest.fn(),
+    uploadAll: jest.fn((archivos: unknown[]) =>
+      Promise.resolve(archivos.map((_, i) => imagen(i + 1))),
+    ),
+  };
+  const archivo = () => ({ size: 100 }) as Express.Multer.File;
 
   let service: ProductoService;
 
@@ -40,7 +48,6 @@ describe("ProductoService", () => {
     precioUnidad: 30000,
     stock: 10,
     descuento: 0,
-    imagenes: [imagen(1), imagen(2)],
   };
 
   beforeEach(() => {
@@ -48,9 +55,12 @@ describe("ProductoService", () => {
     service = new ProductoService(productos as never, files as never);
   });
 
-  it("crea el producto con sus fotos como filas hijas", async () => {
-    const res = await service.create(dto);
+  it("sube las fotos y las guarda como filas hijas", async () => {
+    const archivos = [archivo(), archivo()];
 
+    const res = await service.create(dto, archivos);
+
+    expect(files.validarLote).toHaveBeenCalledWith(archivos, 0);
     expect(res.imagenes.map((i) => i.publicId)).toEqual([
       "docs/foto1",
       "docs/foto2",
@@ -58,10 +68,42 @@ describe("ProductoService", () => {
     expect(files.deleteFiles).not.toHaveBeenCalled();
   });
 
+  it("crea el producto sin fotos si no llegan archivos", async () => {
+    const res = await service.create(dto);
+
+    expect(res.imagenes).toEqual([]);
+  });
+
+  it("borra de Cloudinary lo recién subido si la base falla", async () => {
+    productos.save.mockRejectedValueOnce(new Error("caída"));
+
+    await expect(service.create(dto, [archivo(), archivo()])).rejects.toThrow(
+      "caída",
+    );
+    expect(files.deleteFiles).toHaveBeenCalledWith([
+      "docs/foto1",
+      "docs/foto2",
+    ]);
+  });
+
   it("responde 409 si una foto ya pertenece a otro producto", async () => {
     productos.save.mockRejectedValueOnce({ code: "23505" });
 
-    await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.create(dto, [archivo()])).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  it("no sube nada si el lote no cabe en el límite", async () => {
+    files.validarLote.mockImplementationOnce(() => {
+      throw new BadRequestException("Máximo 5 archivos por registro.");
+    });
+
+    await expect(service.create(dto, [archivo()])).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(files.uploadAll).not.toHaveBeenCalled();
+    expect(productos.save).not.toHaveBeenCalled();
   });
 
   it("findAll filtra por categoría solo si se pide", async () => {
@@ -84,14 +126,17 @@ describe("ProductoService", () => {
       ],
     });
 
-    it("conserva las fotos que siguen y borra de Cloudinary las quitadas", async () => {
+    it("conserva las indicadas, suma las nuevas y borra las quitadas", async () => {
       productos.findOne.mockResolvedValue(existente());
+      files.uploadAll.mockResolvedValueOnce([imagen(3)]);
 
-      const res = await service.update(5, {
-        ...dto,
-        imagenes: [imagen(2), imagen(3)],
-      });
+      const res = await service.update(
+        5,
+        { ...dto, conservar: ["docs/foto2"] },
+        [archivo()],
+      );
 
+      expect(files.validarLote).toHaveBeenCalledWith([expect.anything()], 1);
       expect(res.imagenes.map((i) => i.publicId)).toEqual([
         "docs/foto2",
         "docs/foto3",
@@ -100,14 +145,37 @@ describe("ProductoService", () => {
       expect(files.deleteFiles).toHaveBeenCalledWith(["docs/foto1"]);
     });
 
-    it("no borra nada de Cloudinary si la base de datos falla", async () => {
+    it("sin conservar quita todas las fotos anteriores", async () => {
       productos.findOne.mockResolvedValue(existente());
+
+      const res = await service.update(5, dto);
+
+      expect(res.imagenes).toEqual([]);
+      expect(files.deleteFiles).toHaveBeenCalledWith([
+        "docs/foto1",
+        "docs/foto2",
+      ]);
+    });
+
+    it("si la base falla borra solo lo recién subido, no lo anterior", async () => {
+      productos.findOne.mockResolvedValue(existente());
+      files.uploadAll.mockResolvedValueOnce([imagen(3)]);
       productos.save.mockRejectedValueOnce(new Error("caída"));
 
-      await expect(service.update(5, { ...dto, imagenes: [] })).rejects.toThrow(
-        "caída",
-      );
-      expect(files.deleteFiles).not.toHaveBeenCalled();
+      await expect(
+        service.update(5, { ...dto, conservar: ["docs/foto1"] }, [archivo()]),
+      ).rejects.toThrow("caída");
+      expect(files.deleteFiles).toHaveBeenCalledTimes(1);
+      expect(files.deleteFiles).toHaveBeenCalledWith(["docs/foto3"]);
+    });
+
+    it("responde 400 si conservar incluye una foto ajena", async () => {
+      productos.findOne.mockResolvedValue(existente());
+
+      await expect(
+        service.update(5, { ...dto, conservar: ["docs/otra"] }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(files.uploadAll).not.toHaveBeenCalled();
     });
 
     it("lanza 404 si el producto no existe", async () => {
