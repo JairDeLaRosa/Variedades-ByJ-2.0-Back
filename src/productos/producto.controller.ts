@@ -10,8 +10,11 @@ import {
   Post,
   Put,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { interceptorArchivos } from "../files/archivos";
 import { ProductoService } from "./producto.service";
 import { AjustarStockDto } from "./dtos/ajustar-stock.dto";
 import { CreateProductoDto } from "./dtos/create-producto.dto";
@@ -33,19 +36,26 @@ export class ProductoController {
     return this.productoService.findOne(id);
   }
 
+  // multipart/form-data: campos del producto + fotos nuevas en `imagenes`.
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
-  create(@Body() createProductoDto: CreateProductoDto) {
-    return this.productoService.create(createProductoDto);
+  @UseInterceptors(interceptorArchivos())
+  create(
+    @Body() createProductoDto: CreateProductoDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
+  ) {
+    return this.productoService.create(createProductoDto, archivos);
   }
 
   @Put(":id")
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseInterceptors(interceptorArchivos())
   update(
     @Param("id", ParseIntPipe) id: number,
     @Body() updateProductoDto: CreateProductoDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
   ) {
-    return this.productoService.update(id, updateProductoDto);
+    return this.productoService.update(id, updateProductoDto, archivos);
   }
 
   @Patch(":id/stock")

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -21,13 +22,28 @@ export class SalidaService {
     private readonly files: FilesService,
   ) {}
 
-  create(dto: CreateSalidaDto): Promise<Salida> {
-    return this.guardar(
-      this.salidas.create({
-        ...this.datos(dto),
-        imagenes: dto.imagenes.map((i) => this.imagen(i)),
-      }),
-    );
+  /**
+   * Sube los soportes y guarda salida y soportes en una transacción (el `save`
+   * de TypeORM con cascada la abre). Si la base falla, borra lo recién subido.
+   */
+  async create(
+    dto: CreateSalidaDto,
+    archivos: Express.Multer.File[] = [],
+  ): Promise<Salida> {
+    this.files.validarLote(archivos, 0);
+    const subidos = await this.files.uploadAll(archivos);
+
+    try {
+      return await this.guardar(
+        this.salidas.create({
+          ...this.datos(dto),
+          imagenes: subidos.map((i) => this.imagen(i)),
+        }),
+      );
+    } catch (error) {
+      await this.files.deleteFiles(subidos.map((s) => s.publicId));
+      throw error;
+    }
   }
 
   findAll(): Promise<Salida[]> {
@@ -47,22 +63,45 @@ export class SalidaService {
     return salida;
   }
 
-  /** Reemplaza los datos y el conjunto de soportes; borra los que sobran. */
-  async update(id: number, dto: CreateSalidaDto): Promise<Salida> {
+  /**
+   * Reemplaza los datos y los soportes: se quedan los de `conservar`, se suman
+   * los archivos nuevos y se borran de Cloudinary los que sobran.
+   */
+  async update(
+    id: number,
+    dto: CreateSalidaDto,
+    archivos: Express.Multer.File[] = [],
+  ): Promise<Salida> {
     const salida = await this.findOne(id);
     const anteriores = salida.imagenes;
-    const nuevos = new Set(dto.imagenes.map((i) => i.publicId));
+    const conservar = new Set(dto.conservar ?? []);
+
+    if (
+      ![...conservar].every((p) => anteriores.some((a) => a.publicId === p))
+    ) {
+      throw new BadRequestException(
+        "Algún soporte a conservar no pertenece a esta salida.",
+      );
+    }
+    this.files.validarLote(archivos, conservar.size);
+    const subidos = await this.files.uploadAll(archivos);
 
     Object.assign(salida, this.datos(dto));
-    salida.imagenes = dto.imagenes.map(
-      (i) =>
-        anteriores.find((a) => a.publicId === i.publicId) ?? this.imagen(i),
-    );
+    salida.imagenes = [
+      ...anteriores.filter((a) => conservar.has(a.publicId)),
+      ...subidos.map((i) => this.imagen(i)),
+    ];
 
-    const guardada = await this.guardar(salida);
+    let guardada: Salida;
+    try {
+      guardada = await this.guardar(salida);
+    } catch (error) {
+      await this.files.deleteFiles(subidos.map((s) => s.publicId));
+      throw error;
+    }
 
     await this.files.deleteFiles(
-      anteriores.map((a) => a.publicId).filter((p) => !nuevos.has(p)),
+      anteriores.map((a) => a.publicId).filter((p) => !conservar.has(p)),
     );
     return guardada;
   }

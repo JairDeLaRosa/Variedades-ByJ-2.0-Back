@@ -24,7 +24,12 @@ async function bootstrap() {
   }
 
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      // Necesario para que `@Type` y `@Transform` lleguen al service.
+      transform: true,
+    }),
   );
   app.enableCors({
     origin: config

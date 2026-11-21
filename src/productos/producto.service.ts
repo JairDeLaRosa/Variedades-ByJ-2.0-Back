@@ -27,13 +27,28 @@ export class ProductoService {
     private readonly files: FilesService,
   ) {}
 
-  create(dto: CreateProductoDto): Promise<Producto> {
-    return this.guardar(
-      this.productos.create({
-        ...this.datos(dto),
-        imagenes: dto.imagenes.map((i) => this.imagen(i)),
-      }),
-    );
+  /**
+   * Sube las fotos y guarda producto y fotos en una transacción (el `save` de
+   * TypeORM con cascada la abre). Si la base falla, borra lo recién subido.
+   */
+  async create(
+    dto: CreateProductoDto,
+    archivos: Express.Multer.File[] = [],
+  ): Promise<Producto> {
+    this.files.validarLote(archivos, 0);
+    const subidas = await this.files.uploadAll(archivos);
+
+    try {
+      return await this.guardar(
+        this.productos.create({
+          ...this.datos(dto),
+          imagenes: subidas.map((i) => this.imagen(i)),
+        }),
+      );
+    } catch (error) {
+      await this.files.deleteFiles(subidas.map((s) => s.publicId));
+      throw error;
+    }
   }
 
   findAll(categoria?: string): Promise<Producto[]> {
@@ -54,22 +69,45 @@ export class ProductoService {
     return producto;
   }
 
-  /** Reemplaza los datos y las fotos; borra de Cloudinary las que sobran. */
-  async update(id: number, dto: CreateProductoDto): Promise<Producto> {
+  /**
+   * Reemplaza los datos y las fotos: se quedan las de `conservar`, se suman
+   * los archivos nuevos y se borran de Cloudinary las que sobran.
+   */
+  async update(
+    id: number,
+    dto: CreateProductoDto,
+    archivos: Express.Multer.File[] = [],
+  ): Promise<Producto> {
     const producto = await this.findOne(id);
     const anteriores = producto.imagenes;
-    const nuevas = new Set(dto.imagenes.map((i) => i.publicId));
+    const conservar = new Set(dto.conservar ?? []);
+
+    if (
+      ![...conservar].every((p) => anteriores.some((a) => a.publicId === p))
+    ) {
+      throw new BadRequestException(
+        "Alguna foto a conservar no pertenece a este producto.",
+      );
+    }
+    this.files.validarLote(archivos, conservar.size);
+    const subidas = await this.files.uploadAll(archivos);
 
     Object.assign(producto, this.datos(dto));
-    producto.imagenes = dto.imagenes.map(
-      (i) =>
-        anteriores.find((a) => a.publicId === i.publicId) ?? this.imagen(i),
-    );
+    producto.imagenes = [
+      ...anteriores.filter((a) => conservar.has(a.publicId)),
+      ...subidas.map((i) => this.imagen(i)),
+    ];
 
-    const guardado = await this.guardar(producto);
+    let guardado: Producto;
+    try {
+      guardado = await this.guardar(producto);
+    } catch (error) {
+      await this.files.deleteFiles(subidas.map((s) => s.publicId));
+      throw error;
+    }
 
     await this.files.deleteFiles(
-      anteriores.map((a) => a.publicId).filter((p) => !nuevas.has(p)),
+      anteriores.map((a) => a.publicId).filter((p) => !conservar.has(p)),
     );
     return guardado;
   }
