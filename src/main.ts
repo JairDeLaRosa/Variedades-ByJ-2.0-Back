@@ -2,11 +2,18 @@ import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
+import { configurarSeguridad } from "./common/seguridad";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
+
+  configurarSeguridad(app, {
+    proxysDeConfianza: config.get<number>("TRUST_PROXY"),
+    swaggerActivo: config.get<boolean>("SWAGGER_ENABLED"),
+  });
 
   if (config.get<boolean>("SWAGGER_ENABLED")) {
     const swaggerConfig = new DocumentBuilder()
