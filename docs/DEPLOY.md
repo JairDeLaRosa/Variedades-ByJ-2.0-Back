@@ -26,6 +26,7 @@ Las define `render.yaml`. Los secretos se escriben **en el panel de Render**, nu
 | `SECRET_JWT_SEED`                                                | La genera Render al crear el Blueprint.                                                                                  |
 | `DATABASE_URL`                                                   | Neon, rama `production`, **conexión con pooler**.                                                                        |
 | `CLOUDINARY_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Panel de Cloudinary.                                                                                                     |
+| `TRUST_PROXY`                                                    | Fija en `render.yaml` (`3`): saltos de proxy delante de la API, para leer la IP real y limitar intentos de login.        |
 | `CORS_ORIGINS`                                                   | URL exacta de la web, por ejemplo `https://variedades-byj-2-0-web.<subdominio>.workers.dev`. Varias, separadas por coma. |
 
 ## Primer despliegue
@@ -101,6 +102,14 @@ el lado que sigue siendo compatible o los dos seguidos: durante unos minutos los
 - **API:** pestaña **Logs** del servicio en Render.
 - **Web:** `wrangler.jsonc` activa `observability` con registros de invocación persistentes; se ven en el Worker, en
   **Observability**. Solo registran las visitas al Worker, no las llamadas de la web a la API.
+
+## Límite de intentos y `TRUST_PROXY`
+
+Login y registro admiten 5 peticiones por minuto y por IP (responden 429). La IP se lee de `X-Forwarded-For`, y
+`TRUST_PROXY` dice cuántos saltos de proxy hay delante de la API. En Render son **3**: con 1 o 2 el límite no bloqueaba,
+porque la API veía la IP de un servidor de la infraestructura distinta en cada petición. Para comprobarlo tras un cambio:
+6 logins fallidos seguidos deben dar 401 cinco veces y 429 la sexta, también si cada petición manda una
+`X-Forwarded-For` inventada distinta.
 
 ## Problemas frecuentes
 
