@@ -32,6 +32,7 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      # URL de la web desplegada, por ejemplo https://variedades-byj.pages.dev
+      # URL de la web desplegada, por ejemplo
+      # https://variedades-byj-2-0-web.<subdominio>.workers.dev
       - key: CORS_ORIGINS
         sync: false
