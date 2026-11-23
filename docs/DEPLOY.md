@@ -77,16 +77,37 @@ Las migraciones existentes (usuarios, ventas, salidas y productos) ya están apl
 
 ## Primer administrador
 
-El registro siempre crea usuarios sin permisos. Para tener el primer administrador:
+El registro siempre crea clientes (el rol más bajo). Para tener el primer administrador:
 
 1. Regístrate desde la web con tu correo (la contraseña necesita al menos 6 caracteres).
 2. En Neon, ejecuta sobre la rama `production`:
 
    ```sql
-   UPDATE usuarios SET admin = true WHERE email = 'tu@correo.com';
+   UPDATE usuarios
+   SET rol_id = (SELECT id FROM roles WHERE clave = 'admin')
+   WHERE email = 'tu@correo.com';
    ```
 
 3. Cierra sesión y vuelve a entrar para que el token incluya el permiso.
+
+## Roles y permisos
+
+Los permisos (las acciones del sistema, como `productos.crear` o `salidas.eliminar`) viven en el código, en
+`src/auth/permisos.ts`. Los **roles** viven en la base de datos y eligen cuáles tienen; se crean y configuran desde
+**Roles** en el panel. Cada usuario tiene un rol.
+
+- **Administrador** (rol del sistema): siempre tiene todos los permisos, también los que se agreguen después. No se edita
+  ni se borra.
+- **Cliente** (rol del sistema): es el que recibe quien se registra y no entra al panel.
+- **Vendedor**: viene precargado como punto de partida y se puede editar o borrar.
+
+El backend lee el rol y los permisos de la base de datos en cada petición protegida, así que un cambio vale al instante
+aunque la persona conserve su token. Nadie puede dar permisos que no tiene, y siempre queda al menos un administrador.
+
+La migración `RolesYPermisos` reemplaza la columna `usuarios.admin` por `usuarios.rol_id`: los administradores actuales
+siguen siéndolo y los demás quedan como clientes. Como el plan gratis no corre migraciones al desplegar, el orden es:
+**1)** aplicar la migración en la rama `production`, **2)** mergear. Entre los dos pasos la versión anterior de la API
+falla al iniciar sesión, por eso conviene hacerlos seguidos. Para volver atrás: `npm run migration:revert`.
 
 ## Despliegues posteriores
 
