@@ -158,9 +158,26 @@ export class ProductoService {
   }
 
   private datos(dto: CreateProductoDto) {
-    const { nombre, descripcion, categoria, precioUnidad, stock, descuento } =
-      dto;
-    return { nombre, descripcion, categoria, precioUnidad, stock, descuento };
+    const {
+      nombre,
+      descripcion,
+      categoria,
+      precioUnidad,
+      stock,
+      stockMinimo,
+      descuento,
+    } = dto;
+    // Los opcionales que no llegan se omiten: al crear toma el valor por
+    // defecto de la base y al editar se conserva el actual.
+    return {
+      nombre,
+      descripcion,
+      categoria,
+      precioUnidad,
+      stock,
+      ...(stockMinimo !== undefined && { stockMinimo }),
+      ...(descuento !== undefined && { descuento }),
+    };
   }
 
   private imagen({ publicId, url }: ImagenDto): ProductoImagen {

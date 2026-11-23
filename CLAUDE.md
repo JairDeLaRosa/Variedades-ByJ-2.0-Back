@@ -12,7 +12,7 @@ El frontend vive en el repo `Variedades-ByJ-2.0-web`.
 ## Arquitectura
 
 Un módulo por dominio en `src/<dominio>/`: `controller` → `service` → entidad TypeORM, más `dtos/`.
-`auth`, `usuarios`, `roles`, `productos`, `pedidos`, `salidas`, `ventas`, `reportes`, `configuracion`, `files`, `cloudinary`. La lógica va en el service, nunca en el controller. Ojo: `ventas` es el cierre diario (`api/ventas`); las ventas del sistema (pedidos entregados y de mostrador) las sirve el módulo `pedidos` en `api/ventas-sistema`. `configuracion` guarda los datos del negocio en una sola fila (`GET api/configuracion` es público; `PUT` exige `configuracion.editar` y recibe el logo por multipart).
+`auth`, `usuarios`, `roles`, `productos`, `pedidos`, `salidas`, `ventas`, `reportes`, `configuracion`, `notificaciones`, `files`, `cloudinary`. La lógica va en el service, nunca en el controller. Ojo: `ventas` es el cierre diario (`api/ventas`); las ventas del sistema (pedidos entregados y de mostrador) las sirve el módulo `pedidos` en `api/ventas-sistema`. `notificaciones` calcula al momento los avisos del panel (`GET api/notificaciones`, solo las secciones que el rol puede ver; sin tabla propia). Cada producto tiene su `stock_minimo` (5 por defecto): «stock bajo» es `0 < stock <= stock_minimo`. `configuracion` guarda los datos del negocio en una sola fila (`GET api/configuracion` es público; `PUT` exige `configuracion.editar` y recibe el logo por multipart).
 
 ## Comandos
 

@@ -74,6 +74,20 @@ describe("ProductoService", () => {
     expect(res.imagenes).toEqual([]);
   });
 
+  it("sin stockMinimo no lo manda: la base usa su valor por defecto", async () => {
+    await service.create(dto);
+
+    expect(productos.create.mock.calls[0][0]).not.toHaveProperty("stockMinimo");
+  });
+
+  it("guarda el stockMinimo propio del producto", async () => {
+    await service.create({ ...dto, stockMinimo: 15 });
+
+    expect(productos.create.mock.calls[0][0]).toMatchObject({
+      stockMinimo: 15,
+    });
+  });
+
   it("borra de Cloudinary lo recién subido si la base falla", async () => {
     productos.save.mockRejectedValueOnce(new Error("caída"));
 
