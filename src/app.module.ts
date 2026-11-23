@@ -11,6 +11,7 @@ import { CloudinaryModule } from "./cloudinary/cloudinary.modulo";
 import { FilesModule } from "./files/files.module";
 import { ProductoModule } from "./productos/producto.module";
 import { ReportesModule } from "./reportes/reportes.module";
+import { PedidosModule } from "./pedidos/pedidos.module";
 import { RolesModule } from "./roles/roles.module";
 import { UsuariosModule } from "./usuarios/usuarios.module";
 import { HealthController } from "./health/health.controller";
@@ -38,6 +39,7 @@ import { envValidationSchema } from "./config/env.validation";
     ReportesModule,
     UsuariosModule,
     RolesModule,
+    PedidosModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
