@@ -41,6 +41,8 @@ export enum Permiso {
   UsuariosVer = "usuarios.ver",
   UsuariosAsignarRoles = "usuarios.asignar_roles",
 
+  ConfiguracionEditar = "configuracion.editar",
+
   RolesVer = "roles.ver",
   RolesCrear = "roles.crear",
   RolesEditar = "roles.editar",
@@ -169,6 +171,17 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
     permisos: [
       { clave: Permiso.UsuariosVer, etiqueta: "Ver usuarios" },
       { clave: Permiso.UsuariosAsignarRoles, etiqueta: "Asignar roles" },
+    ],
+  },
+  {
+    modulo: "configuracion",
+    etiqueta: "Configuración",
+    permisos: [
+      {
+        clave: Permiso.ConfiguracionEditar,
+        etiqueta: "Editar los datos del negocio",
+        nota: "Nombre, logo, contacto, redes y datos de transferencia que ve la tienda.",
+      },
     ],
   },
   {

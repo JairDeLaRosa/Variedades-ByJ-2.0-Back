@@ -25,3 +25,20 @@ export const interceptorArchivos = (campo = "imagenes") =>
             false,
           ),
   });
+
+const TIPOS_IMAGEN = /^image\/(jpeg|png|webp|gif)$/;
+
+/** Recibe una sola imagen (el logo del negocio) en el campo indicado. */
+export const interceptorLogo = (campo = "logo") =>
+  FilesInterceptor(campo, 1, {
+    limits: { fileSize: MAX_BYTES_TOTAL },
+    fileFilter: (_req, file, callback) =>
+      TIPOS_IMAGEN.test(file.mimetype)
+        ? callback(null, true)
+        : callback(
+            new BadRequestException(
+              "El logo debe ser una imagen (jpg, png, webp, gif)",
+            ),
+            false,
+          ),
+  });
