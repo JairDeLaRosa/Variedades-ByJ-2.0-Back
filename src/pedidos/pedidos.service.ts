@@ -6,7 +6,13 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, EntityManager, In, Repository } from "typeorm";
+import {
+  DataSource,
+  EntityManager,
+  In,
+  Repository,
+  SelectQueryBuilder,
+} from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { AuthUser } from "../auth/auth-user.interface";
 import { Usuario } from "../auth/entities/usuario.entity";
@@ -16,6 +22,8 @@ import { Producto } from "../productos/producto.entity";
 import { CambiarEstadoDto } from "./dtos/cambiar-estado.dto";
 import { CrearPedidoDto, ItemPedidoDto } from "./dtos/crear-pedido.dto";
 import { ListarPedidosQueryDto } from "./dtos/listar-pedidos-query.dto";
+import { ListarVentasQueryDto } from "./dtos/listar-ventas-query.dto";
+import { RegistrarVentaDto } from "./dtos/registrar-venta.dto";
 import { PedidoItem } from "./pedido-item.entity";
 import {
   CanalPedido,
@@ -27,6 +35,7 @@ import {
 import { Pedido } from "./pedido.entity";
 import {
   codigoDeComprobante,
+  comprobanteDesdeCodigo,
   idDesdeNumero,
   numeroDePedido,
   precioConDescuento,
@@ -35,6 +44,7 @@ import {
 
 const LIMITE_POR_DEFECTO = 20;
 const MAX_PEDIDOS_DEL_CLIENTE = 100;
+const CLIENTE_DE_MOSTRADOR = "Cliente de mostrador";
 
 /** Lo que devuelve la API de un pedido. */
 export const aRespuesta = (pedido: Pedido) => ({
@@ -96,38 +106,7 @@ export class PedidosService {
         throw new UnauthorizedException("La sesión ya no es válida.");
       }
 
-      const cantidades = this.unirDuplicados(dto.items);
-      const productos = await m.find(Producto, {
-        where: { id: In([...cantidades.keys()]) },
-      });
-      const porId = new Map(productos.map((p) => [p.id, p]));
-
-      const items = [...cantidades].map(([productoId, cantidad]) => {
-        const producto = porId.get(productoId);
-        if (!producto) {
-          throw new NotFoundException("Alguno de los productos ya no existe.");
-        }
-        const precioUnidad = precioConDescuento(
-          producto.precioUnidad,
-          producto.descuento,
-        );
-        return m.create(PedidoItem, {
-          productoId,
-          nombre: producto.nombre,
-          precioUnidad,
-          cantidad,
-          subtotal: precioUnidad * cantidad,
-        });
-      });
-
-      const total = items.reduce((suma, i) => suma + i.subtotal, 0);
-      if (total > TOTAL_MAXIMO) {
-        throw new BadRequestException("El pedido supera el valor máximo.");
-      }
-
-      for (const item of items) {
-        await this.reservarStock(m, item);
-      }
+      const { items, total } = await this.armarItems(m, dto.items);
 
       const pedido = await m.save(
         m.create(Pedido, {
@@ -277,6 +256,101 @@ export class PedidosService {
     });
   }
 
+  // --- Ventas -------------------------------------------------------------
+
+  /**
+   * Registra una venta de mostrador: nace entregada, descuenta el stock y recibe
+   * su comprobante en la misma transacción.
+   */
+  registrarVenta(dto: RegistrarVentaDto) {
+    return this.dataSource.transaction(async (m) => {
+      const { items, total } = await this.armarItems(m, dto.items);
+
+      const pedido = await m.save(
+        m.create(Pedido, {
+          usuarioId: null,
+          clienteNombre: dto.clienteNombre || CLIENTE_DE_MOSTRADOR,
+          clienteTelefono: dto.clienteTelefono || null,
+          canal: CanalPedido.Mostrador,
+          estado: EstadoPedido.Entregado,
+          metodoPago: dto.metodoPago,
+          nota: dto.nota || null,
+          total,
+          entregadoEn: new Date(),
+          items,
+        }),
+      );
+      await m.update(
+        Pedido,
+        { id: pedido.id },
+        { numeroComprobante: () => `nextval('${SECUENCIA_COMPROBANTE}')` },
+      );
+
+      return aRespuesta(
+        (await m.findOne(Pedido, {
+          where: { id: pedido.id },
+          relations: { items: true },
+        })) as Pedido,
+      );
+    });
+  }
+
+  /** Las ventas: pedidos entregados de la tienda en línea y ventas de mostrador. */
+  async listarVentas({ canal, q, pagina = 1, limite }: ListarVentasQueryDto) {
+    const porPagina = limite ?? LIMITE_POR_DEFECTO;
+    const filtrar = (consulta: SelectQueryBuilder<Pedido>) => {
+      consulta.where("p.estado = :entregado", {
+        entregado: EstadoPedido.Entregado,
+      });
+      if (canal) consulta.andWhere("p.canal = :canal", { canal });
+      if (q) {
+        const comprobante = comprobanteDesdeCodigo(q);
+        const id = idDesdeNumero(q);
+        if (comprobante !== null) {
+          consulta.andWhere("p.numeroComprobante = :comprobante", {
+            comprobante,
+          });
+        } else if (id !== null) {
+          consulta.andWhere("p.id = :id", { id });
+        } else {
+          consulta.andWhere("p.clienteNombre ILIKE :q", {
+            q: `%${q.replace(/[\\%_]/g, "\\$&")}%`,
+          });
+        }
+      }
+      return consulta;
+    };
+
+    const consulta = filtrar(this.pedidos.createQueryBuilder("p"))
+      .leftJoinAndSelect("p.items", "i")
+      .orderBy("p.entregadoEn", "DESC")
+      .addOrderBy("p.id", "DESC")
+      .skip((pagina - 1) * porPagina)
+      .take(porPagina);
+    const suma = await filtrar(this.pedidos.createQueryBuilder("p"))
+      .select("COALESCE(SUM(p.total), 0)", "monto")
+      .getRawOne<{ monto: string }>();
+
+    const [datos, total] = await consulta.getManyAndCount();
+    return {
+      datos: datos.map(aRespuesta),
+      total,
+      monto: Number(suma?.monto ?? 0),
+      pagina,
+      limite: porPagina,
+    };
+  }
+
+  /** Una venta con todo lo que lleva el comprobante. */
+  async obtenerVenta(id: number) {
+    const pedido = await this.pedidos.findOne({
+      where: { id, estado: EstadoPedido.Entregado },
+      relations: { items: true },
+    });
+    if (!pedido) throw new NotFoundException("La venta no existe.");
+    return aRespuesta(pedido);
+  }
+
   // --- Internos ------------------------------------------------------------
 
   private buscarMio(m: EntityManager, actor: AuthUser, id: number) {
@@ -290,6 +364,46 @@ export class PedidosService {
         if (!pedido) throw new NotFoundException("El pedido no existe.");
         return pedido;
       });
+  }
+
+  /**
+   * Convierte lo pedido en líneas con los precios del catálogo, calcula el
+   * total y descuenta el stock; si falta de cualquier producto no se descuenta nada.
+   */
+  private async armarItems(m: EntityManager, pedidos: ItemPedidoDto[]) {
+    const cantidades = this.unirDuplicados(pedidos);
+    const productos = await m.find(Producto, {
+      where: { id: In([...cantidades.keys()]) },
+    });
+    const porId = new Map(productos.map((p) => [p.id, p]));
+
+    const items = [...cantidades].map(([productoId, cantidad]) => {
+      const producto = porId.get(productoId);
+      if (!producto) {
+        throw new NotFoundException("Alguno de los productos ya no existe.");
+      }
+      const precioUnidad = precioConDescuento(
+        producto.precioUnidad,
+        producto.descuento,
+      );
+      return m.create(PedidoItem, {
+        productoId,
+        nombre: producto.nombre,
+        precioUnidad,
+        cantidad,
+        subtotal: precioUnidad * cantidad,
+      });
+    });
+
+    const total = items.reduce((suma, i) => suma + i.subtotal, 0);
+    if (total > TOTAL_MAXIMO) {
+      throw new BadRequestException("El pedido supera el valor máximo.");
+    }
+
+    for (const item of items) {
+      await this.reservarStock(m, item);
+    }
+    return { items, total };
   }
 
   /** Suma las líneas repetidas del mismo producto. */

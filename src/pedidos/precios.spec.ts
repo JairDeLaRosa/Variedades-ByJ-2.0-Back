@@ -1,5 +1,6 @@
 import {
   codigoDeComprobante,
+  comprobanteDesdeCodigo,
   idDesdeNumero,
   numeroDePedido,
   precioConDescuento,
@@ -36,5 +37,17 @@ describe("idDesdeNumero", () => {
     expect(idDesdeNumero("Ana")).toBeNull();
     expect(idDesdeNumero("ped-")).toBeNull();
     expect(idDesdeNumero("12 ana")).toBeNull();
+  });
+});
+
+describe("comprobanteDesdeCodigo", () => {
+  it("reconoce el código del comprobante", () => {
+    expect(comprobanteDesdeCodigo("CV-000012")).toBe(12);
+    expect(comprobanteDesdeCodigo("cv7")).toBe(7);
+  });
+
+  it("devuelve null si no es un comprobante", () => {
+    expect(comprobanteDesdeCodigo("PED-12")).toBeNull();
+    expect(comprobanteDesdeCodigo("Ana")).toBeNull();
   });
 });

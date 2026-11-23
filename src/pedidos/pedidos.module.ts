@@ -4,11 +4,12 @@ import { FilesModule } from "../files/files.module";
 import { PedidoItem } from "./pedido-item.entity";
 import { Pedido } from "./pedido.entity";
 import { PedidosController } from "./pedidos.controller";
+import { VentasSistemaController } from "./ventas-sistema.controller";
 import { PedidosService } from "./pedidos.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([Pedido, PedidoItem]), FilesModule],
-  controllers: [PedidosController],
+  controllers: [PedidosController, VentasSistemaController],
   providers: [PedidosService],
 })
 export class PedidosModule {}
