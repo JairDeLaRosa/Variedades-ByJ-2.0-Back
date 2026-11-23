@@ -85,6 +85,17 @@ describe("PedidosService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks no vacía los valores «una sola vez» que un test dejó sin
+    // consumir (p. ej. cuando una transición se rechaza antes de la segunda
+    // lectura): se reinician para que no se filtren al test siguiente.
+    manager.findOne.mockReset();
+    manager.find.mockReset();
+    pedidos.find.mockReset();
+    pedidos.findOne.mockReset();
+    pedidos.save.mockReset();
+    files.uploadAll.mockReset();
+    constructor.execute.mockReset();
+    manager.update.mockReset();
     constructor.execute.mockResolvedValue({ affected: 1 });
     manager.update.mockResolvedValue({ affected: 1 });
     service = new PedidosService(
@@ -215,9 +226,15 @@ describe("PedidosService", () => {
       a: EstadoPedido,
       extra: object = {},
     ) => {
-      manager.findOne
-        .mockResolvedValueOnce(pedidoBase({ estado: desde, ...extra }))
-        .mockResolvedValueOnce(pedidoBase({ estado: a, ...extra }));
+      // La primera lectura trae el pedido como estaba; la segunda, ya cambiado.
+      // Se reemplaza la implementación en cada llamada para no dejar valores
+      // sin consumir cuando la transición se rechaza.
+      let lecturas = 0;
+      manager.findOne.mockImplementation(() =>
+        Promise.resolve(
+          pedidoBase({ estado: lecturas++ === 0 ? desde : a, ...extra }),
+        ),
+      );
       return service.cambiarEstado(10, { estado: a });
     };
 
