@@ -31,6 +31,10 @@ export class Producto {
   @Column({ type: "integer" })
   stock: number;
 
+  /** Desde cuántas unidades se avisa «stock bajo»; cada producto tiene el suyo. */
+  @Column({ name: "stock_minimo", type: "integer", default: 5 })
+  stockMinimo: number;
+
   /** Descuento en porcentaje, de 0 a 100. */
   @Column({ type: "integer", default: 0 })
   descuento: number;

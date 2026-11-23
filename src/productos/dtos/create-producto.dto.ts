@@ -42,6 +42,14 @@ export class CreateProductoDto {
   @Max(1_000_000)
   stock: number;
 
+  /** Unidades desde las que se avisa «stock bajo»; si no llega, 5 al crear o el actual al editar. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  stockMinimo?: number;
+
   /** Porcentaje de 0 a 100. */
   @IsOptional()
   @Type(() => Number)
