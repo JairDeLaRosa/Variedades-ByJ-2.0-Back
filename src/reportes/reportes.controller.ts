@@ -1,15 +1,15 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { AdminGuard } from "../auth/guards/admin.guard";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { Controller, Get, Query } from "@nestjs/common";
+import { Autorizar } from "../auth/autorizar.decorator";
+import { Permiso } from "../auth/permisos";
 import { RangoQueryDto } from "./dtos/rango-query.dto";
 import { ReportesService } from "./reportes.service";
 
 @Controller("api/reportes")
-@UseGuards(JwtAuthGuard, AdminGuard)
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Get("resumen")
+  @Autorizar(Permiso.ReportesVer)
   resumen(@Query() rango: RangoQueryDto) {
     return this.reportesService.resumen(rango);
   }

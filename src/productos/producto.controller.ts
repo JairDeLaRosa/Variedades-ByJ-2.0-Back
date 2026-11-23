@@ -11,15 +11,14 @@ import {
   Put,
   Query,
   UploadedFiles,
-  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { interceptorArchivos } from "../files/archivos";
 import { ProductoService } from "./producto.service";
 import { AjustarStockDto } from "./dtos/ajustar-stock.dto";
 import { CreateProductoDto } from "./dtos/create-producto.dto";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { AdminGuard } from "../auth/guards/admin.guard";
+import { Autorizar } from "../auth/autorizar.decorator";
+import { Permiso } from "../auth/permisos";
 
 @Controller("api/productos")
 export class ProductoController {
@@ -38,7 +37,7 @@ export class ProductoController {
 
   // multipart/form-data: campos del producto + fotos nuevas en `imagenes`.
   @Post()
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Autorizar(Permiso.ProductosCrear)
   @UseInterceptors(interceptorArchivos())
   create(
     @Body() createProductoDto: CreateProductoDto,
@@ -48,7 +47,7 @@ export class ProductoController {
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Autorizar(Permiso.ProductosEditar)
   @UseInterceptors(interceptorArchivos())
   update(
     @Param("id", ParseIntPipe) id: number,
@@ -59,7 +58,7 @@ export class ProductoController {
   }
 
   @Patch(":id/stock")
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Autorizar(Permiso.InventarioAjustar)
   ajustarStock(
     @Param("id", ParseIntPipe) id: number,
     @Body() ajuste: AjustarStockDto,
@@ -68,8 +67,8 @@ export class ProductoController {
   }
 
   @Delete(":id")
+  @Autorizar(Permiso.ProductosEliminar)
   @HttpCode(204)
-  @UseGuards(JwtAuthGuard, AdminGuard)
   remove(@Param("id", ParseIntPipe) id: number) {
     return this.productoService.remove(id);
   }

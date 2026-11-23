@@ -2,8 +2,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import { Rol } from "../../roles/rol.entity";
 
 @Entity("usuarios")
 export class Usuario {
@@ -22,8 +26,14 @@ export class Usuario {
   @Column({ type: "text", select: false })
   password: string;
 
-  @Column({ type: "boolean", default: false })
-  admin: boolean;
+  @Index("IDX_usuarios_rol")
+  @Column({ name: "rol_id", type: "integer" })
+  rolId: number;
+
+  /** El rol define qué puede hacer: ver `permisos.ts`. */
+  @ManyToOne(() => Rol, { nullable: false, onDelete: "RESTRICT" })
+  @JoinColumn({ name: "rol_id" })
+  rol: Rol;
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
