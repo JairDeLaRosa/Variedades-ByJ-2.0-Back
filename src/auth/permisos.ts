@@ -60,7 +60,7 @@ export interface GrupoPermisos {
   permisos: DefinicionPermiso[];
 }
 
-const PROXIMAMENTE = "Se activa con el módulo de pedidos y ventas.";
+const PROXIMAMENTE = "Se activa con el módulo de ventas.";
 
 /** Los permisos agrupados por módulo, tal como los muestra la pantalla de roles. */
 export const CATALOGO_PERMISOS: GrupoPermisos[] = [
@@ -97,15 +97,10 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
     modulo: "pedidos",
     etiqueta: "Pedidos",
     permisos: [
-      {
-        clave: Permiso.PedidosVer,
-        etiqueta: "Ver pedidos",
-        nota: PROXIMAMENTE,
-      },
+      { clave: Permiso.PedidosVer, etiqueta: "Ver pedidos" },
       {
         clave: Permiso.PedidosGestionar,
         etiqueta: "Gestionar pedidos (cambiar estado y cancelar)",
-        nota: PROXIMAMENTE,
       },
     ],
   },
