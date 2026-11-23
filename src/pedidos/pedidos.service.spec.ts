@@ -7,7 +7,7 @@ import { AuthUser } from "../auth/auth-user.interface";
 import { Usuario } from "../auth/entities/usuario.entity";
 import { Producto } from "../productos/producto.entity";
 import { Pedido } from "./pedido.entity";
-import { EstadoPedido, MetodoPago } from "./pedido.constantes";
+import { CanalPedido, EstadoPedido, MetodoPago } from "./pedido.constantes";
 import { PedidosService } from "./pedidos.service";
 
 const cliente = { id: 7, name: "Ana", phone: "3001112233" };
@@ -66,6 +66,9 @@ describe("PedidosService", () => {
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn().mockResolvedValue({ monto: "5000" }),
     getManyAndCount: jest.fn().mockResolvedValue([[pedidoBase()], 1]),
   };
   const pedidos = {
@@ -405,6 +408,93 @@ describe("PedidosService", () => {
         service.subirComprobante(actor, 10, [archivo]),
       ).rejects.toThrow("caída");
       expect(files.deleteFiles).toHaveBeenCalledWith(["docs/nuevo"]);
+    });
+  });
+
+  describe("ventas", () => {
+    const vendido = pedidoBase({
+      id: 31,
+      usuarioId: null,
+      canal: CanalPedido.Mostrador,
+      estado: EstadoPedido.Entregado,
+      numeroComprobante: 5,
+      items: [{ id: 1, productoId: 1, nombre: "Piñata", cantidad: 2 }],
+    });
+
+    it("registrarVenta nace entregada, sin cliente, con stock descontado y comprobante", async () => {
+      manager.find.mockResolvedValue([producto(1, "Piñata", 10000, 10)]);
+      manager.findOne.mockResolvedValue(vendido);
+
+      const res = await service.registrarVenta({
+        items: [{ productoId: 1, cantidad: 2 }],
+        metodoPago: MetodoPago.Efectivo,
+      });
+
+      expect(manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          usuarioId: null,
+          canal: CanalPedido.Mostrador,
+          estado: EstadoPedido.Entregado,
+          clienteNombre: "Cliente de mostrador",
+          total: 18000,
+        }),
+      );
+      expect(constructor.execute).toHaveBeenCalledTimes(1);
+      expect(manager.update).toHaveBeenCalledWith(
+        Pedido,
+        { id: 10 },
+        { numeroComprobante: expect.any(Function) },
+      );
+      expect(res.comprobante).toBe("CV-000005");
+      expect(res.estado).toBe(EstadoPedido.Entregado);
+    });
+
+    it("registrarVenta no vende si falta stock", async () => {
+      manager.find.mockResolvedValue([producto(1, "Piñata", 10000)]);
+      constructor.execute.mockResolvedValue({ affected: 0 });
+      manager.findOne.mockResolvedValue({ id: 1, stock: 1 });
+
+      await expect(
+        service.registrarVenta({
+          items: [{ productoId: 1, cantidad: 5 }],
+          metodoPago: MetodoPago.Efectivo,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(manager.save).not.toHaveBeenCalled();
+    });
+
+    it("listarVentas solo trae entregados y suma el monto", async () => {
+      const res = await service.listarVentas({ canal: CanalPedido.Web });
+
+      expect(consultaLista.where).toHaveBeenCalledWith(
+        "p.estado = :entregado",
+        { entregado: "entregado" },
+      );
+      expect(consultaLista.andWhere).toHaveBeenCalledWith("p.canal = :canal", {
+        canal: "web",
+      });
+      expect(res).toMatchObject({ total: 1, monto: 5000, limite: 20 });
+    });
+
+    it("listarVentas busca un comprobante por su número", async () => {
+      await service.listarVentas({ q: "CV-000012" });
+
+      expect(consultaLista.andWhere).toHaveBeenCalledWith(
+        "p.numeroComprobante = :comprobante",
+        { comprobante: 12 },
+      );
+    });
+
+    it("obtenerVenta responde 404 si no existe o no está entregada", async () => {
+      pedidos.findOne.mockResolvedValue(null);
+
+      await expect(service.obtenerVenta(9)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(pedidos.findOne.mock.calls[0][0].where).toEqual({
+        id: 9,
+        estado: "entregado",
+      });
     });
   });
 

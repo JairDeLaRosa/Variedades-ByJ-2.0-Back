@@ -25,3 +25,12 @@ export function idDesdeNumero(texto: string): number | null {
   const coincidencia = texto.match(/^(?:ped-?)?(\d{1,9})$/i);
   return coincidencia ? Number(coincidencia[1]) : null;
 }
+
+/**
+ * Si el texto es un código de comprobante (`CV-12`, `cv000012` o `CV-000012`),
+ * devuelve su número consecutivo; si no, `null`.
+ */
+export function comprobanteDesdeCodigo(texto: string): number | null {
+  const coincidencia = texto.match(/^cv-?(\d{1,9})$/i);
+  return coincidencia ? Number(coincidencia[1]) : null;
+}

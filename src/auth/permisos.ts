@@ -111,17 +111,15 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
       {
         clave: Permiso.VentasVer,
         etiqueta: "Ver ventas",
-        nota: "Hoy la pantalla muestra datos de ejemplo.",
+        nota: "Pedidos entregados y ventas de mostrador.",
       },
       {
         clave: Permiso.VentasRegistrar,
         etiqueta: "Registrar ventas de mostrador",
-        nota: PROXIMAMENTE,
       },
       {
         clave: Permiso.VentasComprobante,
         etiqueta: "Ver el comprobante de una venta",
-        nota: PROXIMAMENTE,
       },
       {
         clave: Permiso.VentasAnular,
