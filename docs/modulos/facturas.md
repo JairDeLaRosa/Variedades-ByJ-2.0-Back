@@ -73,6 +73,7 @@ cuotas ni soportes. Migración `CreateFacturas` ([base de datos](./base-de-datos
 - [salidas](./salidas.md): `Salida.factura` (eager, `RESTRICT`); valida que un pago no supere `total + interesMonto − otros pagos`.
 - [files-cloudinary](./files-cloudinary.md): soportes de la factura (`conservar`, `MAX_ARCHIVOS`).
 - [common](./common.md): rangos mensuales (`rangoDelMes`).
+- [reportes](./reportes.md): usa `FacturaService.resumen()` para la deuda actual (`FacturaModule` exporta `FacturaService`).
 - [auth](./auth.md): permisos `facturas.*`.
 
 ## Historial de cambios
