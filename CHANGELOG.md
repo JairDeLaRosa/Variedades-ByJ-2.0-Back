@@ -18,6 +18,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Changed
 
+- Las migraciones se aplican solas en `production` al mergear a `main` (último paso del job `quality` de CI, antes del despliegue
+  de Render). Requiere el secreto `DATABASE_URL_UNPOOLED` en GitHub; ver `docs/DEPLOY.md`.
 - Las salidas ya no son compras por día: son pagos o abonos de una factura (`facturaId`) o pagos libres con `nota`
   obligatoria, en la fecha que elija el usuario, y no pueden superar el saldo de la factura. **Cambia el contrato de
   `api/salidas`** (`factura` y `tienda` salen de la salida y vienen en `factura: { numero, proveedor, ... }`) y la

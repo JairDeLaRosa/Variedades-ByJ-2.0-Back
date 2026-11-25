@@ -56,4 +56,5 @@ Para crear una: skill `database-migrations`. Una migración por propósito; nunc
 ## Historial de cambios
 
 - Migraciones iniciales (usuarios → stock mínimo) listadas arriba.
-- Migración `CreateFacturas`: tablas de facturas, soportes y cuotas; `salidas` pasa a `factura_id` + `nota`. Sin aplicar todavía en `production`.
+- Las migraciones se aplican solas en `production` al mergear a `main` (paso final del job `quality` en `.github/workflows/ci.yml`, con el secreto `DATABASE_URL_UNPOOLED`); ver `docs/DEPLOY.md`.
+- Migración `CreateFacturas`: tablas de facturas, soportes y cuotas; `salidas` pasa a `factura_id` + `nota`. Aplicada en `production` el 2026-11-25 (con respaldo en una rama de Neon).

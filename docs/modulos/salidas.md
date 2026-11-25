@@ -61,4 +61,4 @@ Ver [base de datos](./base-de-datos.md).
 - `feat(files)` Soportes subidos en el mismo endpoint de crear/editar.
 - `fix(db)` Clave foránea de imágenes con nombre explícito.
 - Las salidas pasan a ser pagos/abonos de una factura (`facturaId`) o pagos libres con `nota`; se valida el saldo con bloqueo;
-  migración `CreateFacturas` convierte las salidas existentes en facturas libres pagadas (sin ejecutar).
+  migración `CreateFacturas` convierte las salidas existentes en facturas libres pagadas (aplicada en `production` el 2026-11-25).

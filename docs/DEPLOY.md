@@ -65,15 +65,24 @@ Las define `render.yaml`. Los secretos se escriben **en el panel de Render**, nu
 
 ## Migraciones de la base de datos
 
-El plan gratis de Render no permite comandos previos al despliegue, así que las migraciones se aplican a mano **antes** de
-desplegar una versión que las necesite:
+Las migraciones se aplican **solas al mergear a `main`**: el último paso del job `quality` de CI
+(`.github/workflows/ci.yml`) corre `npm run migration:run` contra la rama `production` de Neon. Render despliega cuando
+ese check pasa (`autoDeployTrigger: checksPass`), así que la migración termina **antes** del despliegue y, si falla, no se
+despliega y sigue viva la versión anterior. Cada migración corre en una transacción: si falla, no cambia nada.
 
-```bash
-# Con DATABASE_URL_UNPOOLED apuntando a la rama production de Neon
-npm run migration:run
-```
+- Requiere el secreto de GitHub `DATABASE_URL_UNPOOLED` (Settings > Secrets and variables > Actions): la cadena de conexión
+  **directa**, sin `-pooler`, de la rama `production`. El plan gratis de Render no permite un comando previo al despliegue,
+  por eso se hace desde CI.
+- En los PR **no** se migra: solo al hacer push a `main`. Prueba antes las migraciones nuevas en una rama de Neon
+  (`neonctl branches create`) o en local con `npm run migration:run`.
+- Hay unos segundos entre la migración y el despliegue en los que la versión anterior de la API corre con el esquema nuevo.
+  Una migración que borra o renombra columnas rompe esas rutas en ese lapso: hazla en dos pasos (primero agregar y desplegar,
+  después quitar) salvo que el contrato de la API cambie de golpe, como en la de facturas.
+- Para volver atrás: `npm run migration:revert` con `DATABASE_URL_UNPOOLED` apuntando a `production` (a mano).
+- Si una migración falla en CI, revisa el log del job, corrige con una migración nueva (no edites una ya aplicada) y vuelve a
+  mergear.
 
-Las migraciones existentes (usuarios, ventas, salidas y productos) ya están aplicadas en `production`.
+Todas las migraciones existentes (hasta `CreateFacturas`) están aplicadas en `production`.
 
 ## Primer administrador
 
@@ -115,8 +124,8 @@ La migración `CreateFacturas` crea `facturas` (con sus soportes y cuotas), conv
 libre ya pagada y reemplaza `salidas.factura` y `salidas.tienda` por `salidas.factura_id` (opcional) y `salidas.nota`.
 Si dos salidas repiten número de factura, el índice único falla y la migración no cambia nada: corrige los números y
 vuelve a correrla. El contrato de `api/salidas` cambia y las versiones anteriores de la web dejan de poder registrar
-salidas, así que el orden es: **1)** aplicar la migración en `production`, **2)** mergear el back, **3)** mergear la web,
-los tres seguidos. Después hay que dar los permisos `facturas.*` a los roles que no sean Administrador. Para volver atrás:
+salidas hasta que se despliegue la web, así que se mergean el back y la web seguidos (la migración se aplica sola al mergear
+el back; la de facturas ya se aplicó a mano el 2026-11-25). Hay que dar los permisos `facturas.*` a los roles que no sean Administrador. Para volver atrás:
 `npm run migration:revert` (los pagos libres quedan con factura `S/N` y proveedor `Sin proveedor`, y se pierde el detalle
 de abonos, cuotas y soportes de factura).
 
