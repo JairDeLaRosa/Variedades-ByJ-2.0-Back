@@ -37,6 +37,11 @@ El repo del front está en `../Variedades-ByJ-2.0-web` (hermano de este). Tengo 
 - Sin código muerto ni código comentado, y sin `console.log` de depuración (usar el `Logger` de Nest).
 - No inventar APIs: si no estás seguro de que existe, verifícalo en el código o en la documentación.
 - Ante ambigüedad, preguntar.
+- **Documentación por módulo (obligatoria)**: cada módulo tiene su propio `.md` en `docs/modulos/` (índice y mapa de
+  dependencias en `docs/modulos/README.md`). Un módulo nuevo se documenta en su propio archivo y se enlaza desde el índice.
+  **Cada cambio** (endpoint, regla de negocio, permiso, entidad/migración, dependencia entre módulos) se registra en el
+  mismo cambio: actualizar el `.md` del módulo y añadir una línea en su sección «Historial de cambios»; si toca otro módulo,
+  actualizar también el suyo y los enlaces. Leer el `.md` del módulo antes de modificarlo.
 - Secretos solo por variables de entorno; documentarlas en `.env.example`. Nunca commitear `.env`.
 - Fechas: los días de negocio son `date` (`YYYY-MM-DD`); los instantes son `timestamptz` en UTC.
 - Imágenes: tablas hijas y `imagenes: [{ publicId, url }]` en la API, nunca strings con `|`.
