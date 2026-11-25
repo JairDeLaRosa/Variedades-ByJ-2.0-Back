@@ -78,6 +78,8 @@ despliega y sigue viva la versión anterior. Cada migración corre en una transa
 - Hay unos segundos entre la migración y el despliegue en los que la versión anterior de la API corre con el esquema nuevo.
   Una migración que borra o renombra columnas rompe esas rutas en ese lapso: hazla en dos pasos (primero agregar y desplegar,
   después quitar) salvo que el contrato de la API cambie de golpe, como en la de facturas.
+- Las migraciones deben ser **idempotentes** (ver la skill `database-migrations`): si el cambio ya se aplicó a mano en Neon, volver a
+  correrla no debe fallar ni duplicar datos; un error por «ya existe» frenaría el despliegue.
 - Para volver atrás: `npm run migration:revert` con `DATABASE_URL_UNPOOLED` apuntando a `production` (a mano).
 - Si una migración falla en CI, revisa el log del job, corrige con una migración nueva (no edites una ya aplicada) y vuelve a
   mergear.

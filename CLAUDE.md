@@ -42,6 +42,9 @@ El repo del front está en `../Variedades-ByJ-2.0-web` (hermano de este). Tengo 
   **Cada cambio** (endpoint, regla de negocio, permiso, entidad/migración, dependencia entre módulos) se registra en el
   mismo cambio: actualizar el `.md` del módulo y añadir una línea en su sección «Historial de cambios»; si toca otro módulo,
   actualizar también el suyo y los enlaces. Leer el `.md` del módulo antes de modificarlo.
+- **Migraciones idempotentes (obligatorio)**: toda migración debe poder correr aunque el cambio ya esté aplicado a mano o a medias
+  en la base (se corre en CI contra `production`). Usar `IF [NOT] EXISTS`, comprobar antes de crear constraints y proteger los
+  datos sembrados o migrados; también en el `down`. Detalle y patrones en la skill `database-migrations`.
 - Secretos solo por variables de entorno; documentarlas en `.env.example`. Nunca commitear `.env`.
 - Fechas: los días de negocio son `date` (`YYYY-MM-DD`); los instantes son `timestamptz` en UTC.
 - Imágenes: tablas hijas y `imagenes: [{ publicId, url }]` en la API, nunca strings con `|`.

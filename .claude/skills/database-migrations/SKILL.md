@@ -11,6 +11,20 @@ description: Modelo de datos PostgreSQL, entidades TypeORM y migraciones de este
 - Una migración por cambio lógico, con `up` **y** `down`. Nunca editar una migración ya aplicada: crear otra.
 - Generar con `typeorm migration:generate`, **revisar el SQL** antes de aceptarlo.
 - Cambios destructivos (borrar columna, cambiar tipo) en dos pasos: añadir nuevo → migrar datos → quitar viejo.
+- **Toda migración es idempotente**, en `up` y en `down`: debe correr sin error aunque el cambio ya esté aplicado (a mano en Neon,
+  a medias o por un intento anterior). Las migraciones corren solas en CI contra `production`, y un fallo por «ya existe» frena el
+  despliegue. Patrones:
+  - Tablas: `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS`. Índices: `CREATE [UNIQUE] INDEX IF NOT EXISTS` / `DROP INDEX IF EXISTS`.
+  - Columnas: `ADD COLUMN IF NOT EXISTS` / `DROP COLUMN IF EXISTS`. Cambios de tipo o `SET NOT NULL`: son repetibles por sí solos.
+  - Constraints (no tienen `IF NOT EXISTS`): `DROP CONSTRAINT IF EXISTS "X"` y luego `ADD CONSTRAINT "X"`, o un bloque
+    `DO $ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = X) THEN ... END IF; END $`.
+  - Datos: sembrar con `INSERT ... ON CONFLICT DO NOTHING` o `WHERE NOT EXISTS`; migrar con `UPDATE ... WHERE <destino> IS NULL`; no
+    duplicar filas al repetir.
+  - Pasos que dependen de una columna vieja (backfill y luego `DROP COLUMN`): protegerlos con una comprobación en
+    `information_schema.columns` (`DO $ ... IF EXISTS ... $`), porque si la columna ya se borró el `UPDATE` que la lee falla.
+  - Idempotente no es lo mismo que correcto: `IF NOT EXISTS` no corrige una columna o constraint que existe con otra forma. Si se
+    tocó la base a mano, comparar el esquema real con el que espera la migración.
+  - Las migraciones ya aplicadas no se editan: la regla vale para las nuevas.
 - Conexión por `DATABASE_URL` (Neon, SSL requerido). Pool pequeño.
 
 ## Modelo objetivo
