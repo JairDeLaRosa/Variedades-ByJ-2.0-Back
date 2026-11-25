@@ -7,6 +7,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
 import { VentasModule } from "./ventas/ventas.module";
 import { SalidaModule } from "./salidas/salida.module";
+import { FacturaModule } from "./facturas/factura.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.modulo";
 import { FilesModule } from "./files/files.module";
 import { ProductoModule } from "./productos/producto.module";
@@ -36,6 +37,7 @@ import { envValidationSchema } from "./config/env.validation";
     VentasModule,
     CloudinaryModule,
     SalidaModule,
+    FacturaModule,
     FilesModule,
     ProductoModule,
     ReportesModule,

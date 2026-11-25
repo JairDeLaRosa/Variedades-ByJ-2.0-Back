@@ -36,6 +36,11 @@ export enum Permiso {
   SalidasEditar = "salidas.editar",
   SalidasEliminar = "salidas.eliminar",
 
+  FacturasVer = "facturas.ver",
+  FacturasRegistrar = "facturas.registrar",
+  FacturasEditar = "facturas.editar",
+  FacturasEliminar = "facturas.eliminar",
+
   ReportesVer = "reportes.ver",
 
   UsuariosVer = "usuarios.ver",
@@ -152,12 +157,26 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
   },
   {
     modulo: "salidas",
-    etiqueta: "Salidas (compras)",
+    etiqueta: "Salidas (pagos y abonos)",
     permisos: [
       { clave: Permiso.SalidasVer, etiqueta: "Ver salidas" },
       { clave: Permiso.SalidasRegistrar, etiqueta: "Registrar salidas" },
       { clave: Permiso.SalidasEditar, etiqueta: "Editar salidas" },
       { clave: Permiso.SalidasEliminar, etiqueta: "Eliminar salidas" },
+    ],
+  },
+  {
+    modulo: "facturas",
+    etiqueta: "Facturas de compra",
+    permisos: [
+      {
+        clave: Permiso.FacturasVer,
+        etiqueta: "Ver facturas",
+        nota: "Incluye lo pagado y lo que se debe.",
+      },
+      { clave: Permiso.FacturasRegistrar, etiqueta: "Registrar facturas" },
+      { clave: Permiso.FacturasEditar, etiqueta: "Editar facturas" },
+      { clave: Permiso.FacturasEliminar, etiqueta: "Eliminar facturas" },
     ],
   },
   {

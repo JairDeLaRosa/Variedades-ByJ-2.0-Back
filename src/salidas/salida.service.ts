@@ -5,10 +5,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { EntityManager, Repository } from "typeorm";
 import { rangoDelMes } from "../common/month-range";
 import { FilesService } from "../files/files.service";
 import { ImagenDto } from "../common/dtos/imagen.dto";
+import { Factura } from "../facturas/factura.entity";
 import { CreateSalidaDto } from "./dtos/create-salida.dto";
 import { SalidaImagen } from "./salida-imagen.entity";
 import { Salida } from "./salida.entity";
@@ -33,8 +34,9 @@ export class SalidaService {
     this.files.validarLote(archivos, 0);
     const subidos = await this.files.uploadAll(archivos);
 
+    let guardada: Salida;
     try {
-      return await this.guardar(
+      guardada = await this.guardar(
         this.salidas.create({
           ...this.datos(dto),
           imagenes: subidos.map((i) => this.imagen(i)),
@@ -44,6 +46,7 @@ export class SalidaService {
       await this.files.deleteFiles(subidos.map((s) => s.publicId));
       throw error;
     }
+    return this.findOne(guardada.id);
   }
 
   findAll(): Promise<Salida[]> {
@@ -72,7 +75,7 @@ export class SalidaService {
     dto: CreateSalidaDto,
     archivos: Express.Multer.File[] = [],
   ): Promise<Salida> {
-    const salida = await this.findOne(id);
+    const salida = await this.cargar(id);
     const anteriores = salida.imagenes;
     const conservar = new Set(dto.conservar ?? []);
 
@@ -92,9 +95,8 @@ export class SalidaService {
       ...subidos.map((i) => this.imagen(i)),
     ];
 
-    let guardada: Salida;
     try {
-      guardada = await this.guardar(salida);
+      await this.guardar(salida);
     } catch (error) {
       await this.files.deleteFiles(subidos.map((s) => s.publicId));
       throw error;
@@ -103,11 +105,11 @@ export class SalidaService {
     await this.files.deleteFiles(
       anteriores.map((a) => a.publicId).filter((p) => !conservar.has(p)),
     );
-    return guardada;
+    return this.findOne(id);
   }
 
   async remove(id: number): Promise<void> {
-    const salida = await this.findOne(id);
+    const salida = await this.cargar(id);
     await this.salidas.remove(salida);
     await this.files.deleteFiles(salida.imagenes.map((i) => i.publicId));
   }
@@ -118,6 +120,7 @@ export class SalidaService {
 
     return this.salidas
       .createQueryBuilder("salida")
+      .leftJoinAndSelect("salida.factura", "factura")
       .leftJoinAndSelect("salida.imagenes", "imagen")
       .where("salida.fecha >= :desde AND salida.fecha < :hasta", {
         desde,
@@ -129,8 +132,25 @@ export class SalidaService {
       .getMany();
   }
 
-  private datos({ fecha, total, factura, tienda }: CreateSalidaDto) {
-    return { fecha, total, factura, tienda };
+  /**
+   * La salida con sus soportes pero sin la factura: así `facturaId` es lo
+   * único que manda al guardar y no choca con una relación ya cargada.
+   */
+  private async cargar(id: number): Promise<Salida> {
+    const salida = await this.salidas.findOne({
+      where: { id },
+      relations: { imagenes: true },
+      loadEagerRelations: false,
+      order: { imagenes: { id: "ASC" } },
+    });
+    if (!salida) {
+      throw new NotFoundException("La salida no existe.");
+    }
+    return salida;
+  }
+
+  private datos({ fecha, total, facturaId, nota }: CreateSalidaDto) {
+    return { fecha, total, facturaId: facturaId ?? null, nota: nota ?? null };
   }
 
   private imagen({ publicId, url }: ImagenDto): SalidaImagen {
@@ -139,7 +159,13 @@ export class SalidaService {
 
   private async guardar(salida: Salida): Promise<Salida> {
     try {
-      return await this.salidas.save(salida);
+      if (!salida.facturaId) {
+        return await this.salidas.save(salida);
+      }
+      return await this.salidas.manager.transaction(async (manager) => {
+        await this.validarSaldo(manager, salida);
+        return manager.save(salida);
+      });
     } catch (error) {
       // El mismo soporte ya está asociado a otra salida.
       if (error?.code === PG_UNIQUE_VIOLATION) {
@@ -148,6 +174,39 @@ export class SalidaService {
         );
       }
       throw error;
+    }
+  }
+
+  /**
+   * El pago no puede superar lo que falta por pagar de la factura (total más
+   * interés, menos los demás abonos). Bloquea la fila de la factura hasta que
+   * termine la transacción, para que dos abonos a la vez no la sobrepasen.
+   */
+  private async validarSaldo(
+    manager: EntityManager,
+    salida: Salida,
+  ): Promise<void> {
+    const factura = await manager.findOne(Factura, {
+      where: { id: salida.facturaId as number },
+      lock: { mode: "pessimistic_write" },
+    });
+    if (!factura) {
+      throw new BadRequestException("La factura no existe.");
+    }
+
+    const fila = await manager
+      .createQueryBuilder(Salida, "s")
+      .select("COALESCE(SUM(s.total), 0)", "pagado")
+      .where("s.facturaId = :facturaId", { facturaId: factura.id })
+      // Al editar un pago, el saldo se calcula sin contarlo a él.
+      .andWhere("s.id <> :salidaId", { salidaId: salida.id ?? 0 })
+      .getRawOne<{ pagado: string }>();
+
+    const saldo = factura.total + factura.interesMonto - Number(fila?.pagado);
+    if (salida.total > saldo) {
+      throw new BadRequestException(
+        `El pago supera lo que falta por pagar de la factura (${saldo}).`,
+      );
     }
   }
 }

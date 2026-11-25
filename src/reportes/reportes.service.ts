@@ -10,6 +10,8 @@ const MS_POR_DIA = 24 * 60 * 60 * 1000;
 const MAX_DIAS_SERIE_DIARIA = 62;
 const MAX_DIAS_RANGO = 1100;
 const CANTIDAD_RANKING = 5;
+/** Nombre con el que el ranking agrupa los pagos que no tienen factura. */
+const SIN_FACTURA = "Sin factura";
 
 export type Granularidad = "dia" | "mes";
 
@@ -36,7 +38,7 @@ export interface ReporteResumen {
   /** Ventas menos salidas. */
   balance: number;
   serie: PuntoSerie[];
-  /** Tiendas a las que más se compró. */
+  /** Proveedores a los que más se pagó. */
   tiendas: { tienda: string; total: number; cantidad: number }[];
   /** Días con más ventas. */
   mejoresDias: { fecha: string; total: number }[];
@@ -143,13 +145,15 @@ export class ReportesService {
         .where(`s.${entre}`, { desde, hasta })
         .groupBy("periodo")
         .getRawMany(),
+      // El proveedor sale de la factura; los pagos libres van aparte.
       this.salidas
         .createQueryBuilder("s")
-        .select("s.tienda", "tienda")
+        .leftJoin("s.factura", "f")
+        .select(`COALESCE(f.proveedor, '${SIN_FACTURA}')`, "tienda")
         .addSelect("SUM(s.total)", "total")
         .addSelect("COUNT(*)", "cantidad")
         .where(`s.${entre}`, { desde, hasta })
-        .groupBy("s.tienda")
+        .groupBy("tienda")
         .orderBy("total", "DESC")
         .limit(CANTIDAD_RANKING)
         .getRawMany(),

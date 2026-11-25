@@ -109,6 +109,17 @@ siguen siéndolo y los demás quedan como clientes. Como el plan gratis no corre
 **1)** aplicar la migración en la rama `production`, **2)** mergear. Entre los dos pasos la versión anterior de la API
 falla al iniciar sesión, por eso conviene hacerlos seguidos. Para volver atrás: `npm run migration:revert`.
 
+## Facturas y salidas como pagos
+
+La migración `CreateFacturas` crea `facturas` (con sus soportes y cuotas), convierte cada salida existente en una factura
+libre ya pagada y reemplaza `salidas.factura` y `salidas.tienda` por `salidas.factura_id` (opcional) y `salidas.nota`.
+Si dos salidas repiten número de factura, el índice único falla y la migración no cambia nada: corrige los números y
+vuelve a correrla. El contrato de `api/salidas` cambia y las versiones anteriores de la web dejan de poder registrar
+salidas, así que el orden es: **1)** aplicar la migración en `production`, **2)** mergear el back, **3)** mergear la web,
+los tres seguidos. Después hay que dar los permisos `facturas.*` a los roles que no sean Administrador. Para volver atrás:
+`npm run migration:revert` (los pagos libres quedan con factura `S/N` y proveedor `Sin proveedor`, y se pierde el detalle
+de abonos, cuotas y soportes de factura).
+
 ## Despliegues posteriores
 
 Render despliega solo cuando el CI de GitHub pasa (`autoDeployTrigger: checksPass`), y Cloudflare despliega cada vez que

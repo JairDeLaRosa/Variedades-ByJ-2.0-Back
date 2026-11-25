@@ -52,6 +52,7 @@ describe("ReportesService.resumen", () => {
   // Cada repositorio devuelve su cadena de QueryBuilder; las consultas se piden
   // en el mismo orden en que las encadena el servicio.
   const cadena = () => ({
+    leftJoin: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
