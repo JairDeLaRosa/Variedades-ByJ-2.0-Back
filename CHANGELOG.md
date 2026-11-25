@@ -16,6 +16,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
   parcial, pagada o vencida), con resumen de lo que se debe, lo vencido y lo que vence en 7 días, y un simulador de cuotas.
   Número de factura único. Permisos `facturas.ver`, `facturas.registrar`, `facturas.editar` y `facturas.eliminar`.
 
+- Reportes: `GET api/reportes/resumen` trae el reparto de pagos del periodo (a facturas y libres), lo facturado en el periodo y la deuda actual con proveedores (por pagar, vencido, por vencer en 7 días y a quién se le debe más); la deuda solo para quien tenga `facturas.ver`.
+
 ### Changed
 
 - Las migraciones se aplican solas en `production` al mergear a `main` (último paso del job `quality` de CI, antes del despliegue

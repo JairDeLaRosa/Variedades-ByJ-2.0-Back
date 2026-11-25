@@ -16,6 +16,8 @@ Resumen financiero de un rango de fechas: ventas (del **cierre diario**) contra 
 salidas:{ total, cantidad }, balance, serie:[{ periodo, ventas, salidas }], tiendas:[{ tienda, total, cantidad }],
 mejoresDias:[{ fecha, total }] }`.
 
+Además de lo anterior: `salidas` trae `aFacturas` y `libres` (pagos con y sin factura), `facturas:{ cantidad, facturado }` (facturas con fecha en el periodo, con interés) y `deuda` (lo que se debe **hoy**: `porPagar`, `vencido`, `porVencer7Dias`, `facturasConSaldo` y `proveedores:[{ proveedor, saldo, facturas }]`, top 5). `deuda` es `null` si quien consulta no tiene `facturas.ver`.
+
 ## Reglas
 
 - `diasDelRango` valida fechas reales (rechaza `2026-02-31`), `desde <= hasta` y rango **≤ 1100 días** (400).
@@ -24,13 +26,15 @@ mejoresDias:[{ fecha, total }] }`.
 - `balance = ventas.total − salidas.total`. `unirSeries` combina ventas y salidas por periodo, ordenado ascendente.
 - Rankings: top **5** tiendas (por total de salidas; el nombre es el **proveedor de la factura** y los pagos sin factura se
   agrupan como «Sin factura») y top 5 días con más ventas.
-- Las 6 consultas corren en paralelo (`Promise.all`).
+- **Deuda**: no depende del periodo (es el estado actual). Los totales y los vencimientos salen de `FacturaService.resumen()` ([facturas](./facturas.md)); el ranking de proveedores es una consulta propia sobre `facturas` y `salidas`. Se agrupa por el texto exacto del proveedor: «Papelería Central» y «papeleria central» cuentan como dos.
+- Las consultas corren en paralelo (`Promise.all`); la de deuda solo se hace con `facturas.ver`.
 
 ## Relaciones
 
 - [ventas](./ventas.md) (`Venta`): fuente de ventas. **No** incluye las [ventas del sistema](./pedidos.md) (pedidos entregados).
 - [salidas](./salidas.md) (`Salida`): fuente de salidas; su `factura` ([facturas](./facturas.md)) da el proveedor del ranking.
-- [auth](./auth.md): permiso `reportes.ver`.
+- [facturas](./facturas.md) (`Factura`, `FacturaService`): facturado del periodo y deuda actual. `ReportesModule` importa `FacturaModule`.
+- [auth](./auth.md): permisos `reportes.ver` y `facturas.ver` (este último habilita `deuda`).
 
 ## Trampas
 
@@ -42,4 +46,5 @@ mejoresDias:[{ fecha, total }] }`.
 ## Historial de cambios
 
 - Módulo creado con resumen por rango, serie diaria/mensual y rankings.
+- Estadísticas de deuda: lo facturado y lo pagado en el periodo (con y sin factura) y lo que se debe hoy, por proveedor, con `facturas.ver`.
 - El ranking de tiendas toma el proveedor de la factura (`LEFT JOIN`) y agrupa los pagos libres como «Sin factura».

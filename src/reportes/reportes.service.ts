@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { AuthUser } from "../auth/auth-user.interface";
+import { Permiso } from "../auth/permisos";
+import { Factura } from "../facturas/factura.entity";
+import { FacturaService } from "../facturas/factura.service";
 import { Salida } from "../salidas/salida.entity";
 import { Venta } from "../ventas/ventas.entity";
 import { RangoQueryDto } from "./dtos/rango-query.dto";
@@ -22,6 +26,19 @@ export interface PuntoSerie {
   salidas: number;
 }
 
+/** Estado actual de las deudas con proveedores; no depende del periodo. */
+export interface DeudaReporte {
+  /** Lo que falta por pagar de todas las facturas (con interés). */
+  porPagar: number;
+  /** Lo que ya debió pagarse según plazos y cuotas. */
+  vencido: number;
+  /** Lo que vence en los próximos 7 días. */
+  porVencer7Dias: number;
+  facturasConSaldo: number;
+  /** Proveedores a los que más se les debe. */
+  proveedores: { proveedor: string; saldo: number; facturas: number }[];
+}
+
 export interface ReporteResumen {
   desde: string;
   hasta: string;
@@ -34,7 +51,17 @@ export interface ReporteResumen {
     /** Días con ventas registradas en el rango. */
     dias: number;
   };
-  salidas: { total: number; cantidad: number };
+  /** Pagos del periodo: los hechos a una factura y los libres (sin factura). */
+  salidas: {
+    total: number;
+    cantidad: number;
+    aFacturas: number;
+    libres: number;
+  };
+  /** Facturas con fecha en el periodo; `facturado` incluye el interés. */
+  facturas: { cantidad: number; facturado: number };
+  /** Lo que se debe hoy; null si quien consulta no puede ver facturas. */
+  deuda: DeudaReporte | null;
   /** Ventas menos salidas. */
   balance: number;
   serie: PuntoSerie[];
@@ -98,9 +125,14 @@ export class ReportesService {
   constructor(
     @InjectRepository(Venta) private readonly ventas: Repository<Venta>,
     @InjectRepository(Salida) private readonly salidas: Repository<Salida>,
+    @InjectRepository(Factura) private readonly facturas: Repository<Factura>,
+    private readonly facturaService: FacturaService,
   ) {}
 
-  async resumen({ desde, hasta }: RangoQueryDto): Promise<ReporteResumen> {
+  async resumen(
+    { desde, hasta }: RangoQueryDto,
+    actor: AuthUser,
+  ): Promise<ReporteResumen> {
     const dias = diasDelRango(desde, hasta);
     const granularidad: Granularidad =
       dias <= MAX_DIAS_SERIE_DIARIA ? "dia" : "mes";
@@ -115,6 +147,8 @@ export class ReportesService {
       serieSalidas,
       tiendas,
       mejoresDias,
+      totalesFacturas,
+      deuda,
     ] = await Promise.all([
       this.ventas
         .createQueryBuilder("v")
@@ -129,6 +163,10 @@ export class ReportesService {
         .createQueryBuilder("s")
         .select("COALESCE(SUM(s.total), 0)", "total")
         .addSelect("COUNT(*)", "cantidad")
+        .addSelect(
+          "COALESCE(SUM(s.total) FILTER (WHERE s.facturaId IS NOT NULL), 0)",
+          "aFacturas",
+        )
         .where(`s.${entre}`, { desde, hasta })
         .getRawOne(),
       this.ventas
@@ -166,6 +204,13 @@ export class ReportesService {
         .addOrderBy("v.fecha", "DESC")
         .limit(CANTIDAD_RANKING)
         .getRawMany(),
+      this.facturas
+        .createQueryBuilder("f")
+        .select("COUNT(*)", "cantidad")
+        .addSelect("COALESCE(SUM(f.total + f.interesMonto), 0)", "facturado")
+        .where(`f.${entre}`, { desde, hasta })
+        .getRawOne(),
+      actor.permisos.includes(Permiso.FacturasVer) ? this.deuda() : null,
     ]);
 
     const ventas = {
@@ -175,9 +220,13 @@ export class ReportesService {
       transferencias: aNumero(totalesVentas?.transferencias),
       dias: aNumero(totalesVentas?.dias),
     };
+    const totalSalidas = aNumero(totalesSalidas?.total);
+    const aFacturas = aNumero(totalesSalidas?.aFacturas);
     const salidas = {
-      total: aNumero(totalesSalidas?.total),
+      total: totalSalidas,
       cantidad: aNumero(totalesSalidas?.cantidad),
+      aFacturas,
+      libres: totalSalidas - aFacturas,
     };
 
     return {
@@ -186,6 +235,11 @@ export class ReportesService {
       granularidad,
       ventas,
       salidas,
+      facturas: {
+        cantidad: aNumero(totalesFacturas?.cantidad),
+        facturado: aNumero(totalesFacturas?.facturado),
+      },
+      deuda,
       balance: ventas.total - salidas.total,
       serie: unirSeries(serieVentas, serieSalidas),
       tiendas: tiendas.map((t) => ({
@@ -197,6 +251,49 @@ export class ReportesService {
         fecha: d.fecha,
         total: aNumero(d.total),
       })),
+    };
+  }
+
+  /**
+   * Lo que se debe hoy. Los totales y los vencimientos los calcula el módulo
+   * de facturas; aquí solo se agrega a quién se le debe más.
+   */
+  private async deuda(): Promise<DeudaReporte> {
+    const [resumen, proveedores] = await Promise.all([
+      this.facturaService.resumen(),
+      this.facturas.query(
+        `
+        SELECT f.proveedor,
+               SUM(f.total + f.interes_monto - COALESCE(p.pagado, 0))::int AS saldo,
+               COUNT(*)::int AS facturas
+        FROM facturas f
+        LEFT JOIN (
+          SELECT factura_id, SUM(total) AS pagado
+          FROM salidas
+          WHERE factura_id IS NOT NULL
+          GROUP BY factura_id
+        ) p ON p.factura_id = f.id
+        WHERE f.total + f.interes_monto > COALESCE(p.pagado, 0)
+        GROUP BY f.proveedor
+        ORDER BY saldo DESC, f.proveedor ASC
+        LIMIT $1
+      `,
+        [CANTIDAD_RANKING],
+      ),
+    ]);
+
+    return {
+      porPagar: resumen.porPagar,
+      vencido: resumen.vencido,
+      porVencer7Dias: resumen.porVencer7Dias,
+      facturasConSaldo: resumen.facturasConSaldo,
+      proveedores: proveedores.map(
+        (p: { proveedor: string; saldo: number; facturas: number }) => ({
+          proveedor: p.proveedor,
+          saldo: Number(p.saldo),
+          facturas: Number(p.facturas),
+        }),
+      ),
     };
   }
 }
