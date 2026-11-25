@@ -24,7 +24,7 @@ PostgreSQL con TypeORM (Neon en producción). **`synchronize: false`**: el esque
 | 1763630000000 | `AddStockMinimoProductos` | `productos.stock_minimo` (default 5, CHECK 0–1.000.000).                                                                                                                 |
 | 1763640000000 | `CreateFacturas`          | `facturas`, `factura_imagenes`, `factura_cuotas`; convierte cada salida en una factura libre pagada; `salidas` gana `factura_id` y `nota` y pierde `factura` y `tienda`. |
 
-Para crear una: skill `database-migrations`. Una migración por propósito; nunca editar una ya aplicada.
+Para crear una: skill `database-migrations`. Una migración por propósito; nunca editar una ya aplicada. **Toda migración nueva debe ser idempotente** (`IF [NOT] EXISTS`, comprobaciones antes de crear constraints, datos con `ON CONFLICT`/`WHERE NOT EXISTS`), en `up` y en `down`, porque corre sola en CI contra `production` y puede encontrar el cambio ya aplicado a mano.
 
 ## Tablas y módulo dueño
 
@@ -56,4 +56,6 @@ Para crear una: skill `database-migrations`. Una migración por propósito; nunc
 ## Historial de cambios
 
 - Migraciones iniciales (usuarios → stock mínimo) listadas arriba.
-- Migración `CreateFacturas`: tablas de facturas, soportes y cuotas; `salidas` pasa a `factura_id` + `nota`. Sin aplicar todavía en `production`.
+- Regla: las migraciones nuevas deben ser idempotentes (`up` y `down`). Las ya aplicadas (hasta `CreateFacturas`) no se reescriben.
+- Las migraciones se aplican solas en `production` al mergear a `main` (paso final del job `quality` en `.github/workflows/ci.yml`, con el secreto `DATABASE_URL_UNPOOLED`); ver `docs/DEPLOY.md`.
+- Migración `CreateFacturas`: tablas de facturas, soportes y cuotas; `salidas` pasa a `factura_id` + `nota`. Aplicada en `production` el 2026-11-25 (con respaldo en una rama de Neon).

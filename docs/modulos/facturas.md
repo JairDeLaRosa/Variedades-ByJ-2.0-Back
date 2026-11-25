@@ -78,4 +78,4 @@ cuotas ni soportes. Migración `CreateFacturas` ([base de datos](./base-de-datos
 ## Historial de cambios
 
 - Módulo creado: entidades, `calculos.ts`, service, controller, migración `CreateFacturas`, permisos `facturas.*`, tests
-  (`calculos.spec.ts`, `factura.service.spec.ts`) y simulador de cuotas. Los tests y la migración no se han ejecutado.
+  (`calculos.spec.ts`, `factura.service.spec.ts`) y simulador de cuotas. Tests (254 en el backend) y migración ejecutados; la migración se aplicó en `production` el 2026-11-25.

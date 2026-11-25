@@ -11,7 +11,8 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # En main nunca se cancela una ejecución: podría cortar una migración a medias.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -41,6 +42,16 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Último paso de este job a propósito: Render despliega cuando este check
+      # pasa (`autoDeployTrigger: checksPass`), así que la migración siempre
+      # termina antes del despliegue y, si falla, no se despliega.
+      # Solo en main y con la conexión directa (sin pooler) a production.
+      - name: Aplicar migraciones pendientes en production
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: npm run migration:run
 
       - name: Subir cobertura
         if: always()
