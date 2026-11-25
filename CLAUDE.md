@@ -14,6 +14,12 @@ El frontend vive en el repo `Variedades-ByJ-2.0-web`.
 Un módulo por dominio en `src/<dominio>/`: `controller` → `service` → entidad TypeORM, más `dtos/`.
 `auth`, `usuarios`, `roles`, `productos`, `pedidos`, `salidas`, `ventas`, `reportes`, `configuracion`, `notificaciones`, `files`, `cloudinary`. La lógica va en el service, nunca en el controller. Ojo: `ventas` es el cierre diario (`api/ventas`); las ventas del sistema (pedidos entregados y de mostrador) las sirve el módulo `pedidos` en `api/ventas-sistema`. `notificaciones` calcula al momento los avisos del panel (`GET api/notificaciones`, solo las secciones que el rol puede ver; sin tabla propia). Cada producto tiene su `stock_minimo` (5 por defecto): «stock bajo» es `0 < stock <= stock_minimo`. `configuracion` guarda los datos del negocio en una sola fila (`GET api/configuracion` es público; `PUT` exige `configuracion.editar` y recibe el logo por multipart).
 
+## Frontend (permiso de trabajo)
+
+El repo del front está en `../Variedades-ByJ-2.0-web` (hermano de este). Tengo permiso para leerlo, analizarlo y
+**hacer cambios** en él cuando una tarea toque el contrato de la API; en ese caso se siguen las reglas de su propio
+`CLAUDE.md` y los commits/PR van por separado en cada repo (el front tiene su rama y su PR).
+
 ## Comandos
 
 | Acción     | Comando                                                            |
