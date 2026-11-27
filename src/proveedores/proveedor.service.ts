@@ -14,7 +14,7 @@ const PG_UNIQUE_VIOLATION = "23505";
 const PG_FK_VIOLATION = "23503";
 
 const MENSAJE_CON_FACTURAS =
-  "El proveedor tiene facturas: desactívalo en lugar de eliminarlo.";
+  "El proveedor tiene facturas o pagos: desactívalo en lugar de eliminarlo.";
 
 /** Lo facturado a un proveedor, lo pagado y lo que se le debe hoy. */
 export interface ResumenProveedor {

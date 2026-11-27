@@ -14,8 +14,6 @@ const MS_POR_DIA = 24 * 60 * 60 * 1000;
 const MAX_DIAS_SERIE_DIARIA = 62;
 const MAX_DIAS_RANGO = 1100;
 const CANTIDAD_RANKING = 5;
-/** Nombre con el que el ranking agrupa los pagos que no tienen factura. */
-const SIN_FACTURA = "Sin factura";
 
 export type Granularidad = "dia" | "mes";
 
@@ -186,7 +184,8 @@ export class ReportesService {
         .createQueryBuilder("s")
         .leftJoin("s.factura", "f")
         .leftJoin("f.proveedorRef", "pv")
-        .select(`COALESCE(pv.nombre, '${SIN_FACTURA}')`, "tienda")
+        .leftJoin("s.proveedorRef", "sp")
+        .select("COALESCE(pv.nombre, sp.nombre)", "tienda")
         .addSelect("SUM(s.total)", "total")
         .addSelect("COUNT(*)", "cantidad")
         .where(`s.${entre}`, { desde, hasta })

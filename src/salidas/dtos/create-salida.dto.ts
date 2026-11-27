@@ -4,7 +4,6 @@ import {
   IsArray,
   IsInt,
   IsISO8601,
-  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -32,7 +31,7 @@ export class CreateSalidaDto {
   @Max(2_000_000_000)
   total: number;
 
-  /** Factura a la que se abona; sin ella el pago es libre y exige `nota`. */
+  /** Factura a la que se abona; sin ella el pago es libre y exige `proveedorId`. */
   @IsOptional()
   @Transform(vacioAUndefined)
   @Type(() => Number)
@@ -40,14 +39,24 @@ export class CreateSalidaDto {
   @Min(1)
   facturaId?: number;
 
-  /** Obligatoria si no hay `facturaId`: dice a qué hace referencia el pago. */
-  @ValidateIf((o: CreateSalidaDto) => !o.facturaId || o.nota !== undefined)
+  /**
+   * Proveedor de un pago libre: obligatorio si no hay `facturaId`. Con factura
+   * se ignora, porque el proveedor es el de la factura.
+   */
+  @ValidateIf((o: CreateSalidaDto) => !o.facturaId)
+  @Transform(vacioAUndefined)
+  @Type(() => Number)
+  @IsInt({ message: "El proveedor es obligatorio cuando no hay factura" })
+  @Min(1, { message: "El proveedor es obligatorio cuando no hay factura" })
+  proveedorId?: number;
+
+  /** Opcional: un detalle libre sobre el pago. */
+  @IsOptional()
   @Transform(({ value }) => {
     const limpio = vacioAUndefined({ value });
     return typeof limpio === "string" ? limpio.trim() || undefined : limpio;
   })
-  @IsString({ message: "La nota es obligatoria cuando no hay factura" })
-  @IsNotEmpty({ message: "La nota es obligatoria cuando no hay factura" })
+  @IsString()
   @MaxLength(300)
   nota?: string;
 

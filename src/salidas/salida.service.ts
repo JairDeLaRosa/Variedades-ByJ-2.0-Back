@@ -10,6 +10,7 @@ import { rangoDelMes } from "../common/month-range";
 import { FilesService } from "../files/files.service";
 import { ImagenDto } from "../common/dtos/imagen.dto";
 import { Factura } from "../facturas/factura.entity";
+import { Proveedor } from "../proveedores/proveedor.entity";
 import { CreateSalidaDto } from "./dtos/create-salida.dto";
 import { SalidaImagen } from "./salida-imagen.entity";
 import { Salida } from "./salida.entity";
@@ -32,6 +33,7 @@ export class SalidaService {
     archivos: Express.Multer.File[] = [],
   ): Promise<Salida> {
     this.files.validarLote(archivos, 0);
+    await this.validarProveedor(dto);
     const subidos = await this.files.uploadAll(archivos);
 
     let guardada: Salida;
@@ -78,6 +80,7 @@ export class SalidaService {
     const salida = await this.cargar(id);
     const anteriores = salida.imagenes;
     const conservar = new Set(dto.conservar ?? []);
+    await this.validarProveedor(dto, salida.proveedorId);
 
     if (
       ![...conservar].every((p) => anteriores.some((a) => a.publicId === p))
@@ -122,6 +125,7 @@ export class SalidaService {
       .createQueryBuilder("salida")
       .leftJoinAndSelect("salida.factura", "factura")
       .leftJoinAndSelect("factura.proveedorRef", "proveedor")
+      .leftJoinAndSelect("salida.proveedorRef", "proveedorPago")
       .leftJoinAndSelect("salida.imagenes", "imagen")
       .where("salida.fecha >= :desde AND salida.fecha < :hasta", {
         desde,
@@ -150,8 +154,41 @@ export class SalidaService {
     return salida;
   }
 
-  private datos({ fecha, total, facturaId, nota }: CreateSalidaDto) {
-    return { fecha, total, facturaId: facturaId ?? null, nota: nota ?? null };
+  /** Con factura el proveedor es el de la factura: `proveedorId` solo se guarda en pagos libres. */
+  private datos({
+    fecha,
+    total,
+    facturaId,
+    proveedorId,
+    nota,
+  }: CreateSalidaDto) {
+    return {
+      fecha,
+      total,
+      facturaId: facturaId ?? null,
+      proveedorId: facturaId ? null : (proveedorId ?? null),
+      nota: nota ?? null,
+    };
+  }
+
+  /**
+   * Un pago libre exige un proveedor que exista y esté activo. Al editar se
+   * admite el que el pago ya tiene aunque se haya desactivado después.
+   */
+  private async validarProveedor(
+    { facturaId, proveedorId }: CreateSalidaDto,
+    actualId?: number | null,
+  ): Promise<void> {
+    if (facturaId || proveedorId === undefined) return;
+    const proveedor = await this.salidas.manager.findOneBy(Proveedor, {
+      id: proveedorId,
+    });
+    if (!proveedor) {
+      throw new BadRequestException("El proveedor no existe.");
+    }
+    if (!proveedor.activo && proveedorId !== actualId) {
+      throw new BadRequestException("El proveedor está desactivado.");
+    }
   }
 
   private imagen({ publicId, url }: ImagenDto): SalidaImagen {

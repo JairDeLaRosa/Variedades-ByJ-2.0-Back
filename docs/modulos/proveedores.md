@@ -13,7 +13,7 @@ desde aquí se ve cuánto se les ha facturado, pagado y se les debe.
 | GET    | `/api/proveedores`     | `proveedores.ver`      | Lista por nombre con `totalFacturas` y `saldo` de cada uno. Filtros `?buscar=` (nombre, NIT o contacto) y `?activo=true\|false`. |
 | GET    | `/api/proveedores/:id` | `proveedores.ver`      | Detalle: datos, `resumen` (`facturas`, `facturado`, `pagado`, `saldo`) y `facturas` (mismo formato que `GET api/facturas`). 404. |
 | PUT    | `/api/proveedores/:id` | `proveedores.editar`   | Reemplaza los datos; `activo` se conserva si no viene (así se desactiva y reactiva). 409 si el nombre choca con otro.            |
-| DELETE | `/api/proveedores/:id` | `proveedores.eliminar` | 204; 409 si tiene facturas (hay que desactivarlo).                                                                               |
+| DELETE | `/api/proveedores/:id` | `proveedores.eliminar` | 204; 409 si tiene facturas o pagos (hay que desactivarlo).                                                                       |
 
 ## Reglas
 
@@ -25,7 +25,7 @@ desde aquí se ve cuánto se les ha facturado, pagado y se les debe.
   consulta agregada sobre `facturas` y `salidas` (lo pagado son las salidas de cada factura).
 - Un proveedor **desactivado** no se puede elegir en facturas nuevas, ni cambiar una factura a él; una factura que ya lo tiene
   se puede seguir editando. Los desactivados siguen apareciendo en la lista y en los reportes.
-- No se borra un proveedor con facturas: la FK `RESTRICT` responde 409 con «desactívalo en lugar de eliminarlo».
+- No se borra un proveedor con facturas ni con pagos libres: las FK `RESTRICT` responden 409 con «desactívalo en lugar de eliminarlo».
 
 ## Modelo de datos
 
@@ -39,7 +39,7 @@ proveedor por cada nombre distinto de las facturas existentes (sin distinguir ma
 - [facturas](./facturas.md): `Factura.proveedorRef` (eager) y `proveedorId`; `ProveedorModule` importa `FacturaModule` y usa
   `FacturaService.findAll({ proveedorId })` para el detalle.
 - [reportes](./reportes.md): el ranking de pagos y la deuda por proveedor agrupan por la tabla `proveedores`.
-- [salidas](./salidas.md): `factura.proveedor` (nombre) sigue en su respuesta.
+- [salidas](./salidas.md): `factura.proveedor` (nombre) sigue en su respuesta, y los pagos libres se asocian a un proveedor (`salidas.proveedor_id`).
 - [auth](./auth.md): permisos `proveedores.*` (el Administrador los recibe solo; a los demás roles hay que dárselos).
 
 ## Trampas
@@ -51,3 +51,4 @@ proveedor por cada nombre distinto de las facturas existentes (sin distinguir ma
 
 - Módulo creado: entidad, CRUD, resumen por proveedor, migración `CreateProveedores`, permisos `proveedores.*` y tests.
   Las facturas dejan el proveedor de texto libre por `proveedorId`.
+- Los pagos libres ([salidas](./salidas.md)) se asocian a un proveedor; un proveedor con pagos tampoco se puede eliminar.

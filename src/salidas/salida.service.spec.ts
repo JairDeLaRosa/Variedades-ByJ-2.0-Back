@@ -40,6 +40,7 @@ describe("SalidaService", () => {
     createQueryBuilder: jest.fn(() => consulta),
     manager: {
       transaction: jest.fn((cb: (m: typeof manager) => unknown) => cb(manager)),
+      findOneBy: jest.fn(),
     },
   };
   // uploadAll devuelve img1, img2... según cuántos archivos lleguen.
@@ -57,13 +58,17 @@ describe("SalidaService", () => {
   const dto = {
     fecha: "2025-03-10",
     total: 120000,
-    nota: "Pago a proveedor",
+    proveedorId: 3,
+    nota: "Arriendo de noviembre",
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     salidas.findOne.mockReset();
     manager.findOne.mockReset();
+    salidas.manager.findOneBy
+      .mockReset()
+      .mockResolvedValue({ id: 3, nombre: "Veneplas", activo: true });
     consultaPagado.getRawOne.mockReset();
     // Tras guardar, el service relee la salida: devuelve lo que se guardó.
     salidas.findOne.mockResolvedValue({ id: 1, imagenes: [] });
@@ -102,11 +107,57 @@ describe("SalidaService", () => {
       expect(salidas.save).toHaveBeenCalledWith(
         expect.objectContaining({
           facturaId: null,
-          nota: "Pago a proveedor",
+          proveedorId: 3,
+          nota: "Arriendo de noviembre",
           total: 120000,
         }),
       );
       expect(salidas.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it("la nota es opcional: sin ella se guarda null", async () => {
+      await service.create({ ...dto, nota: undefined });
+
+      expect(salidas.save).toHaveBeenCalledWith(
+        expect.objectContaining({ proveedorId: 3, nota: null }),
+      );
+    });
+
+    it("rechaza un proveedor que no existe en un pago libre, sin subir archivos", async () => {
+      salidas.manager.findOneBy.mockResolvedValue(null);
+
+      await expect(service.create(dto, [archivo()])).rejects.toThrow(
+        /proveedor no existe/,
+      );
+      expect(files.uploadAll).not.toHaveBeenCalled();
+    });
+
+    it("rechaza un proveedor desactivado en un pago libre nuevo", async () => {
+      salidas.manager.findOneBy.mockResolvedValue({ id: 3, activo: false });
+
+      await expect(service.create(dto)).rejects.toThrow(/desactivado/);
+      expect(salidas.save).not.toHaveBeenCalled();
+    });
+
+    it("con factura ignora el proveedor y lo guarda en null", async () => {
+      manager.findOne.mockResolvedValue({
+        id: 7,
+        total: 100000,
+        interesMonto: 0,
+      });
+      consultaPagado.getRawOne.mockResolvedValue({ pagado: "0" });
+
+      await service.create({
+        fecha: "2025-03-10",
+        total: 60000,
+        facturaId: 7,
+        proveedorId: 3,
+      });
+
+      expect(manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ facturaId: 7, proveedorId: null }),
+      );
+      expect(salidas.manager.findOneBy).not.toHaveBeenCalled();
     });
 
     it("guarda el pago de una factura cuando cabe dentro del saldo", async () => {
@@ -243,6 +294,7 @@ describe("SalidaService", () => {
       fecha: "2025-01-01",
       total: 1,
       facturaId: null,
+      proveedorId: 3,
       nota: "vieja",
       imagenes: [
         { id: 10, ...imagen(1) },
@@ -362,15 +414,38 @@ describe("SalidaService", () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it("al quitar la factura de un pago pasa a guardarse como pago libre", async () => {
-      salidas.findOne.mockResolvedValue({ ...existente(), facturaId: 7 });
+    it("al quitar la factura de un pago pasa a guardarse como pago libre con su proveedor", async () => {
+      salidas.findOne.mockResolvedValue({
+        ...existente(),
+        facturaId: 7,
+        proveedorId: null,
+      });
 
       await service.update(5, dto);
 
       expect(salidas.save).toHaveBeenCalledWith(
-        expect.objectContaining({ facturaId: null }),
+        expect.objectContaining({ facturaId: null, proveedorId: 3 }),
       );
       expect(salidas.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it("admite el proveedor actual aunque esté desactivado", async () => {
+      salidas.findOne.mockResolvedValue(existente());
+      salidas.manager.findOneBy.mockResolvedValue({ id: 3, activo: false });
+
+      await service.update(5, dto);
+
+      expect(salidas.save).toHaveBeenCalled();
+    });
+
+    it("no admite cambiar a un proveedor desactivado", async () => {
+      salidas.findOne.mockResolvedValue(existente());
+      salidas.manager.findOneBy.mockResolvedValue({ id: 4, activo: false });
+
+      await expect(
+        service.update(5, { ...dto, proveedorId: 4 }),
+      ).rejects.toThrow(/desactivado/);
+      expect(files.uploadAll).not.toHaveBeenCalled();
     });
   });
 
@@ -430,6 +505,15 @@ describe("SalidaService", () => {
         desde: "2025-12-01",
         hasta: "2026-01-01",
       });
+    });
+
+    it("incluye el proveedor del pago libre", async () => {
+      await service.getByMonth("2025-03");
+
+      expect(consulta.leftJoinAndSelect).toHaveBeenCalledWith(
+        "salida.proveedorRef",
+        "proveedorPago",
+      );
     });
 
     it("incluye la factura de cada salida", async () => {
