@@ -123,6 +123,7 @@ describe("SalidaService", () => {
       expect(manager.findOne).toHaveBeenCalledWith(Factura, {
         where: { id: 7 },
         lock: { mode: "pessimistic_write" },
+        loadEagerRelations: false,
       });
       expect(manager.save).toHaveBeenCalledWith(
         expect.objectContaining({ facturaId: 7, total: 60000 }),
@@ -437,6 +438,15 @@ describe("SalidaService", () => {
       expect(consulta.leftJoinAndSelect).toHaveBeenCalledWith(
         "salida.factura",
         "factura",
+      );
+    });
+
+    it("incluye el proveedor de la factura", async () => {
+      await service.getByMonth("2025-03");
+
+      expect(consulta.leftJoinAndSelect).toHaveBeenCalledWith(
+        "factura.proveedorRef",
+        "proveedor",
       );
     });
   });

@@ -35,7 +35,7 @@ elige quien la registra: puede haber varias en un día o una cada mes.
 
 ## Respuesta
 
-`{ id, fecha, total, facturaId, nota, factura: { id, numero, proveedor, ... } | null, imagenes: [{ publicId, url }],
+`{ id, fecha, total, facturaId, nota, factura: { id, numero | null, proveedor, ... } | null, imagenes: [{ publicId, url }],
 createdAt, updatedAt }`. `factura` es eager y trae solo los campos de la tabla (no cuotas ni soportes).
 
 ## Modelo de datos
@@ -62,3 +62,4 @@ Ver [base de datos](./base-de-datos.md).
 - `fix(db)` Clave foránea de imágenes con nombre explícito.
 - Las salidas pasan a ser pagos/abonos de una factura (`facturaId`) o pagos libres con `nota`; se valida el saldo con bloqueo;
   migración `CreateFacturas` convierte las salidas existentes en facturas libres pagadas (aplicada en `production` el 2026-11-25).
+- `factura.proveedor` sigue siendo el nombre del proveedor, ahora tomado de la tabla `proveedores` ([proveedores](./proveedores.md)); la consulta por mes lo une (`factura.proveedorRef`).

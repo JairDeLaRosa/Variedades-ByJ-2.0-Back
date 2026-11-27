@@ -1,12 +1,16 @@
 import {
+  AfterLoad,
   Column,
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Proveedor } from "../proveedores/proveedor.entity";
 import type { Modalidad, Periodicidad } from "./calculos";
 import { FacturaCuota } from "./factura-cuota.entity";
 import { FacturaImagen } from "./factura-imagen.entity";
@@ -20,12 +24,36 @@ export class Factura {
   @PrimaryGeneratedColumn("increment")
   id: number;
 
-  /** Único sin distinguir mayúsculas (índice `UQ_facturas_numero`). */
-  @Column({ type: "text" })
-  numero: string;
+  /**
+   * Opcional: hay facturas que vienen sin número. Si lo tiene, es único sin
+   * distinguir mayúsculas (índice `UQ_facturas_numero`); varias pueden quedar en `null`.
+   */
+  @Column({ type: "text", nullable: true })
+  numero: string | null;
 
-  @Column({ type: "text" })
+  @Index()
+  @Column({ name: "proveedor_id", type: "integer" })
+  proveedorId: number;
+
+  /**
+   * Se carga con la factura en las lecturas (`eager`). Las escrituras la cargan
+   * con `loadEagerRelations: false`: si no, esta relación pisaría a `proveedorId`.
+   */
+  @ManyToOne(() => Proveedor, {
+    nullable: false,
+    onDelete: "RESTRICT",
+    eager: true,
+  })
+  @JoinColumn({ name: "proveedor_id" })
+  proveedorRef: Proveedor;
+
+  /** Nombre del proveedor, tomado de `proveedorRef` al leer (no es una columna). */
   proveedor: string;
+
+  @AfterLoad()
+  asignarNombreProveedor(): void {
+    this.proveedor = this.proveedorRef?.nombre ?? "";
+  }
 
   /** Día de la factura, `YYYY-MM-DD`. */
   @Index()
