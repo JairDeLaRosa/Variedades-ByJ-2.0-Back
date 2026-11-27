@@ -18,11 +18,6 @@ export class CreateVentaDto {
   @Min(0)
   @Max(MAX_MONTO)
   totalPapeleria: number;
-
-  @IsInt()
-  @Min(0)
-  @Max(MAX_MONTO)
-  totalTransferencias: number;
 }
 
 export interface ResponseCreateRPT {

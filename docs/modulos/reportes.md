@@ -12,7 +12,7 @@ Resumen financiero de un rango de fechas: ventas (del **cierre diario**) contra 
 
 ## Respuesta (`ReporteResumen`)
 
-`{ desde, hasta, granularidad: "dia"|"mes", ventas:{ total, papeleria, pinateria, transferencias, dias },
+`{ desde, hasta, granularidad: "dia"|"mes", ventas:{ total, papeleria, pinateria, dias },
 salidas:{ total, cantidad }, balance, serie:[{ periodo, ventas, salidas }], tiendas:[{ tienda, total, cantidad }],
 mejoresDias:[{ fecha, total }] }`.
 
@@ -47,4 +47,5 @@ Además de lo anterior: `salidas` trae `aFacturas` y `libres` (pagos con y sin f
 
 - Módulo creado con resumen por rango, serie diaria/mensual y rankings.
 - Estadísticas de deuda: lo facturado y lo pagado en el periodo (con y sin factura) y lo que se debe hoy, por proveedor, con `facturas.ver`.
+- `ventas.transferencias` sale de la respuesta: el cierre diario ya no tiene ese campo ([ventas](./ventas.md)).
 - El ranking de tiendas toma el proveedor de la factura (`LEFT JOIN`) y agrupa los pagos libres como «Sin factura».

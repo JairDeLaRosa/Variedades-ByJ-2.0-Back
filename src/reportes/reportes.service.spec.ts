@@ -128,10 +128,9 @@ describe("ReportesService.resumen", () => {
 
   it("arma el resumen con totales, balance, serie y rankings", async () => {
     consultaVentas.getRawOne.mockResolvedValue({
-      total: "160000",
+      total: "145000",
       papeleria: "50000",
       pinateria: "95000",
-      transferencias: "15000",
       dias: "2",
     });
     consultaVentas.getRawMany
@@ -152,10 +151,9 @@ describe("ReportesService.resumen", () => {
 
     expect(res.granularidad).toBe("dia");
     expect(res.ventas).toEqual({
-      total: 160000,
+      total: 145000,
       papeleria: 50000,
       pinateria: 95000,
-      transferencias: 15000,
       dias: 2,
     });
     expect(res.salidas).toEqual({
@@ -164,7 +162,7 @@ describe("ReportesService.resumen", () => {
       aFacturas: 500000,
       libres: 0,
     });
-    expect(res.balance).toBe(-340000);
+    expect(res.balance).toBe(-355000);
     expect(res.serie).toEqual([
       { periodo: "2026-11-19", ventas: 100000, salidas: 500000 },
     ]);

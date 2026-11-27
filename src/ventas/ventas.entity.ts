@@ -25,9 +25,6 @@ export class Venta {
   @Column({ name: "total_papeleria", type: "integer" })
   totalPapeleria: number;
 
-  @Column({ name: "total_transferencias", type: "integer", default: 0 })
-  totalTransferencias: number;
-
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
 

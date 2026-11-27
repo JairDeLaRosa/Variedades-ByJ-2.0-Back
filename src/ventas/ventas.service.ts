@@ -22,9 +22,8 @@ export class VentasService {
     const montos = {
       totalPinateria: dto.totalPinateria,
       totalPapeleria: dto.totalPapeleria,
-      totalTransferencias: dto.totalTransferencias,
       // El total siempre se calcula aquí, nunca se confía en el cliente.
-      total: dto.totalPinateria + dto.totalPapeleria + dto.totalTransferencias,
+      total: dto.totalPinateria + dto.totalPapeleria,
     };
 
     const existente = await this.ventas.findOneBy({ fecha: dto.fecha });
