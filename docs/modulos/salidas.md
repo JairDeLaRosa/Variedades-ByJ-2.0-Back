@@ -3,7 +3,7 @@
 `src/salidas/` · Ruta base `api/salidas` · [← Índice](./README.md)
 
 Dinero que **sale** del negocio, con soportes (imágenes o PDF). Una salida es un **pago o abono**: va asociada a una
-[factura](./facturas.md) (pago total o abono) o es un pago **libre** con una nota que dice a qué se refiere. La fecha la
+[factura](./facturas.md) (pago total o abono) o es un pago **libre** asociado a un [proveedor](./proveedores.md). La fecha la
 elige quien la registra: puede haber varias en un día o una cada mes.
 
 ## Endpoints
@@ -19,10 +19,12 @@ elige quien la registra: puede haber varias en un día o una cada mes.
 
 ## Reglas
 
-- Campos: `fecha` (`YYYY-MM-DD`), `total` (entero ≥ 1, el valor del pago), `facturaId?`, `nota?` (≤300) y `conservar?`.
+- Campos: `fecha` (`YYYY-MM-DD`), `total` (entero ≥ 1, el valor del pago), `facturaId?`, `proveedorId?`, `nota?` (≤300, siempre opcional) y `conservar?`.
   Un campo vacío del formulario multipart cuenta como ausente.
-- **Sin `facturaId` la `nota` es obligatoria** (400). Con factura la nota es opcional. La BD lo refuerza con
-  `CK_salidas_factura_o_nota`.
+- **Sin `facturaId` el `proveedorId` es obligatorio** (400): el pago libre se asocia a un proveedor que exista y esté activo
+  (400 si no; al editar se admite el que el pago ya tiene aunque se haya desactivado). Con factura `proveedorId` se ignora y
+  se guarda `null`: el proveedor es el de la factura. La BD lo refuerza con `CK_salidas_proveedor`
+  (`factura_id IS NULL` ⇔ `proveedor_id IS NOT NULL`).
 - **El pago no puede superar el saldo de la factura**: `total + interesMonto − suma de los demás pagos` (400 con el saldo en
   el mensaje; 400 si la factura no existe). Se valida en una transacción que bloquea la fila de la factura
   (`pessimistic_write`), así dos abonos simultáneos no la sobrepasan. Al editar un pago se excluye a sí mismo del cálculo.
@@ -35,12 +37,13 @@ elige quien la registra: puede haber varias en un día o una cada mes.
 
 ## Respuesta
 
-`{ id, fecha, total, facturaId, nota, factura: { id, numero | null, proveedor, ... } | null, imagenes: [{ publicId, url }],
-createdAt, updatedAt }`. `factura` es eager y trae solo los campos de la tabla (no cuotas ni soportes).
+`{ id, fecha, total, facturaId, proveedorId, proveedor, nota, factura: { id, numero | null, proveedor, ... } | null, imagenes: [{ publicId, url }],
+createdAt, updatedAt }`. `factura` es eager y trae solo los campos de la tabla (no cuotas ni soportes). `proveedorId` solo viene en
+pagos libres; `proveedor` es el nombre del proveedor del pago, o el de su factura si la tiene.
 
 ## Modelo de datos
 
-`salidas`: `id`, `fecha` (índice), `total`, `factura_id` (FK a `facturas`, `ON DELETE RESTRICT`, índice), `nota`, `created_at`,
+`salidas`: `id`, `fecha` (índice), `total`, `factura_id` (FK a `facturas`, `ON DELETE RESTRICT`, índice), `proveedor_id` (FK a `proveedores`, `ON DELETE RESTRICT`, índice, solo pagos libres), `nota` (opcional), `created_at`,
 `updated_at`; CHECK `total >= 0`. `salida_imagenes`: `salida_id` (CASCADE), `public_id` único, `url`. Imágenes `eager`.
 Ver [base de datos](./base-de-datos.md).
 
@@ -63,3 +66,4 @@ Ver [base de datos](./base-de-datos.md).
 - Las salidas pasan a ser pagos/abonos de una factura (`facturaId`) o pagos libres con `nota`; se valida el saldo con bloqueo;
   migración `CreateFacturas` convierte las salidas existentes en facturas libres pagadas (aplicada en `production` el 2026-11-25).
 - `factura.proveedor` sigue siendo el nombre del proveedor, ahora tomado de la tabla `proveedores` ([proveedores](./proveedores.md)); la consulta por mes lo une (`factura.proveedorRef`).
+- Los pagos libres se asocian a un proveedor (`proveedorId`, obligatorio sin factura) y la `nota` pasa a ser opcional. Migración `SalidasProveedor`: crea o reutiliza un proveedor por cada nombre distinto de la nota de los pagos libres existentes y los asocia; la nota se conserva.

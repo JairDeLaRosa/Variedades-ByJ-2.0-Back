@@ -24,9 +24,8 @@ Además de lo anterior: `salidas` trae `aFacturas` y `libres` (pagos con y sin f
 - **Granularidad**: serie diaria si el rango ≤ 62 días; si no, mensual (`to_char` con `YYYY-MM-DD` o `YYYY-MM`; el formato es
   una de dos constantes, nunca texto del cliente).
 - `balance = ventas.total − salidas.total`. `unirSeries` combina ventas y salidas por periodo, ordenado ascendente.
-- Rankings: top **5** tiendas (por total de salidas; el nombre es el **proveedor de la factura** y los pagos sin factura se
-  agrupan como «Sin factura») y top 5 días con más ventas.
-- **Deuda**: no depende del periodo (es el estado actual). Los totales y los vencimientos salen de `FacturaService.resumen()` ([facturas](./facturas.md)); el ranking de proveedores es una consulta propia sobre `facturas` y `salidas`. Se agrupa por el texto exacto del proveedor: «Papelería Central» y «papeleria central» cuentan como dos.
+- Rankings: top **5** tiendas (por total de salidas; el nombre es el **proveedor de la factura**, o el del propio pago si es libre) y top 5 días con más ventas.
+- **Deuda**: no depende del periodo (es el estado actual). Los totales y los vencimientos salen de `FacturaService.resumen()` ([facturas](./facturas.md)); el ranking de proveedores es una consulta propia sobre `facturas` y `salidas`. Se agrupa por proveedor ([proveedores](./proveedores.md)), solo por sus facturas.
 - Las consultas corren en paralelo (`Promise.all`); la de deuda solo se hace con `facturas.ver`.
 
 ## Relaciones
@@ -48,5 +47,5 @@ Además de lo anterior: `salidas` trae `aFacturas` y `libres` (pagos con y sin f
 - Módulo creado con resumen por rango, serie diaria/mensual y rankings.
 - Estadísticas de deuda: lo facturado y lo pagado en el periodo (con y sin factura) y lo que se debe hoy, por proveedor, con `facturas.ver`.
 - `ventas.transferencias` sale de la respuesta: el cierre diario ya no tiene ese campo ([ventas](./ventas.md)).
-- El ranking de tiendas toma el proveedor de la factura (`LEFT JOIN`) y agrupa los pagos libres como «Sin factura».
+- El ranking de tiendas toma el proveedor de la factura (`LEFT JOIN`) y, en los pagos libres, el proveedor del propio pago (`salidas.proveedor_id`).
 - El ranking de pagos y la deuda agrupan por la tabla `proveedores` ([proveedores](./proveedores.md)) en vez del texto de la factura: «Papelería Central» y «papeleria central» ya son el mismo proveedor.
