@@ -86,7 +86,7 @@ SQL directo o constantes importadas). Todos los módulos con endpoints protegido
 
 | Término                   | Significado                                                                                                    |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Cierre diario**         | Fila de `ventas`: totales de piñatería, papelería y transferencias de un día. Módulo [ventas](./ventas.md).    |
+| **Cierre diario**         | Fila de `ventas`: totales de piñatería y papelería de un día. Módulo [ventas](./ventas.md).                    |
 | **Venta del sistema**     | Un [pedido](./pedidos.md) en estado `entregado` (de la web o del mostrador), con número de comprobante `CV-…`. |
 | **Salida**                | Dinero que sale del negocio (compra o pago). Módulo [salidas](./salidas.md).                                   |
 | **Factura**               | Factura de compra a un proveedor, con modalidad libre/plazo/cuotas. Módulo [facturas](./facturas.md).          |

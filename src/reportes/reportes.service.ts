@@ -47,7 +47,6 @@ export interface ReporteResumen {
     total: number;
     papeleria: number;
     pinateria: number;
-    transferencias: number;
     /** Días con ventas registradas en el rango. */
     dias: number;
   };
@@ -155,7 +154,6 @@ export class ReportesService {
         .select("COALESCE(SUM(v.total), 0)", "total")
         .addSelect("COALESCE(SUM(v.totalPapeleria), 0)", "papeleria")
         .addSelect("COALESCE(SUM(v.totalPinateria), 0)", "pinateria")
-        .addSelect("COALESCE(SUM(v.totalTransferencias), 0)", "transferencias")
         .addSelect("COUNT(*)", "dias")
         .where(`v.${entre}`, { desde, hasta })
         .getRawOne(),
@@ -217,7 +215,6 @@ export class ReportesService {
       total: aNumero(totalesVentas?.total),
       papeleria: aNumero(totalesVentas?.papeleria),
       pinateria: aNumero(totalesVentas?.pinateria),
-      transferencias: aNumero(totalesVentas?.transferencias),
       dias: aNumero(totalesVentas?.dias),
     };
     const totalSalidas = aNumero(totalesSalidas?.total);

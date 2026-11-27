@@ -28,7 +28,6 @@ describe("VentasService", () => {
       fecha: "2025-03-10",
       totalPinateria: 100000,
       totalPapeleria: 50000,
-      totalTransferencias: 25000,
     };
 
     it("crea el día calculando el total en el servidor", async () => {
@@ -40,7 +39,7 @@ describe("VentasService", () => {
       expect(res.data).toMatchObject({
         id: 1,
         fecha: "2025-03-10",
-        total: 175000,
+        total: 150000,
       });
     });
 
@@ -51,13 +50,12 @@ describe("VentasService", () => {
         total: 1,
         totalPinateria: 1,
         totalPapeleria: 0,
-        totalTransferencias: 0,
       });
 
       const res = await service.create(dto);
 
       expect(res.msg).toBe("Registro actualizado.");
-      expect(res.data).toMatchObject({ id: 7, total: 175000 });
+      expect(res.data).toMatchObject({ id: 7, total: 150000 });
     });
 
     it("responde 409 si otro cierre del mismo día se guardó antes", async () => {
