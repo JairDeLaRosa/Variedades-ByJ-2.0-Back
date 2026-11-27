@@ -121,6 +121,7 @@ export class SalidaService {
     return this.salidas
       .createQueryBuilder("salida")
       .leftJoinAndSelect("salida.factura", "factura")
+      .leftJoinAndSelect("factura.proveedorRef", "proveedor")
       .leftJoinAndSelect("salida.imagenes", "imagen")
       .where("salida.fecha >= :desde AND salida.fecha < :hasta", {
         desde,
@@ -189,6 +190,8 @@ export class SalidaService {
     const factura = await manager.findOne(Factura, {
       where: { id: salida.facturaId as number },
       lock: { mode: "pessimistic_write" },
+      // Sin el proveedor: un LEFT JOIN no se puede bloquear con FOR UPDATE.
+      loadEagerRelations: false,
     });
     if (!factura) {
       throw new BadRequestException("La factura no existe.");

@@ -19,6 +19,7 @@ const AHORA = "2026-11-25T17:00:00Z";
 const crearFactura = (datos: Record<string, unknown> = {}) => ({
   id: 1,
   numero: "F-1",
+  proveedorId: 1,
   proveedor: "Papelería Central",
   fecha: "2026-11-01",
   total: 100000,
@@ -37,7 +38,7 @@ const crearFactura = (datos: Record<string, unknown> = {}) => ({
 
 const crearDto = (datos: Partial<CreateFacturaDto> = {}): CreateFacturaDto => ({
   numero: "F-1",
-  proveedor: "Papelería Central",
+  proveedorId: 1,
   fecha: "2026-11-01",
   total: 100000,
   modalidad: "libre",
@@ -65,6 +66,7 @@ const dtoCuotas = (datos: Partial<CreateFacturaDto> = {}) =>
 describe("FacturaService", () => {
   // Consulta de facturas con cuotas (listado y resumen).
   const consultaFacturas = {
+    innerJoinAndSelect: jest.fn().mockReturnThis(),
     leftJoinAndSelect: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
@@ -104,6 +106,7 @@ describe("FacturaService", () => {
     manager: {
       transaction: jest.fn((cb: (m: typeof manager) => unknown) => cb(manager)),
       find: jest.fn(),
+      findOneBy: jest.fn(),
     },
   };
   const salidas = {
@@ -135,6 +138,9 @@ describe("FacturaService", () => {
     manager.find.mockReset();
     facturas.findOne.mockReset().mockResolvedValue(crearFactura());
     facturas.manager.find.mockReset();
+    facturas.manager.findOneBy
+      .mockReset()
+      .mockResolvedValue({ id: 1, nombre: "Papelería Central", activo: true });
     salidas.find.mockReset().mockResolvedValue([]);
     salidas.count.mockReset().mockResolvedValue(0);
 
@@ -150,6 +156,28 @@ describe("FacturaService", () => {
   });
 
   describe("create", () => {
+    it("guarda la factura sin número como null", async () => {
+      await service.create(crearDto({ numero: undefined }));
+
+      expect(facturas.save.mock.calls[0][0]).toMatchObject({ numero: null });
+    });
+
+    it("rechaza un proveedor que no existe, sin subir archivos", async () => {
+      facturas.manager.findOneBy.mockResolvedValue(null);
+
+      await expect(
+        service.create(crearDto({ proveedorId: 99 }), [archivo()]),
+      ).rejects.toThrow(/proveedor no existe/);
+      expect(files.uploadAll).not.toHaveBeenCalled();
+    });
+
+    it("rechaza un proveedor desactivado", async () => {
+      facturas.manager.findOneBy.mockResolvedValue({ id: 1, activo: false });
+
+      await expect(service.create(crearDto())).rejects.toThrow(/desactivado/);
+      expect(facturas.save).not.toHaveBeenCalled();
+    });
+
     it("sube los soportes y los guarda como filas hijas", async () => {
       const archivos = [archivo(), archivo()];
 
@@ -361,8 +389,17 @@ describe("FacturaService", () => {
       await service.findAll({ proveedor: "100%_a" });
 
       expect(consultaFacturas.andWhere).toHaveBeenCalledWith(
-        "f.proveedor ILIKE :proveedor",
+        "p.nombre ILIKE :proveedor",
         { proveedor: "%100\\%\\_a%" },
+      );
+    });
+
+    it("filtra por el id del proveedor", async () => {
+      await service.findAll({ proveedorId: 7 });
+
+      expect(consultaFacturas.andWhere).toHaveBeenCalledWith(
+        "f.proveedorId = :proveedorId",
+        { proveedorId: 7 },
       );
     });
 
@@ -689,7 +726,25 @@ describe("FacturaService", () => {
       expect(manager.findOne).toHaveBeenCalledWith(Factura, {
         where: { id: 5 },
         lock: { mode: "pessimistic_write" },
+        loadEagerRelations: false,
       });
+    });
+
+    it("admite el proveedor actual aunque esté desactivado", async () => {
+      facturas.manager.findOneBy.mockResolvedValue({ id: 1, activo: false });
+
+      await service.update(5, crearDto({ proveedorId: 1 }));
+
+      expect(manager.save).toHaveBeenCalled();
+    });
+
+    it("no admite cambiar a un proveedor desactivado", async () => {
+      facturas.manager.findOneBy.mockResolvedValue({ id: 2, activo: false });
+
+      await expect(
+        service.update(5, crearDto({ proveedorId: 2 })),
+      ).rejects.toThrow(/desactivado/);
+      expect(files.uploadAll).not.toHaveBeenCalled();
     });
 
     it("si la base falla borra solo lo recién subido, no lo anterior", async () => {
@@ -767,10 +822,10 @@ describe("FacturaService", () => {
       });
 
       it("permite editar otros datos si total y calendario no cambian, sin tocar las cuotas", async () => {
-        await service.update(5, dtoCuotas({ proveedor: "Otro proveedor" }));
+        await service.update(5, dtoCuotas({ proveedorId: 2 }));
 
         expect(manager.save).toHaveBeenCalledWith(
-          expect.objectContaining({ proveedor: "Otro proveedor" }),
+          expect.objectContaining({ proveedorId: 2 }),
         );
         expect(consultaTx.delete).not.toHaveBeenCalled();
       });

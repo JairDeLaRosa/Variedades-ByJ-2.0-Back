@@ -12,18 +12,20 @@ PostgreSQL con TypeORM (Neon en producción). **`synchronize: false`**: el esque
 
 ## Migraciones (orden)
 
-| Timestamp     | Migración                       | Crea / cambia                                                                                                                                                                |
-| ------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1763560000000 | `CreateUsuarios`                | `usuarios`.                                                                                                                                                                  |
-| 1763570000000 | `CreateVentas`                  | `ventas` (fecha única, CHECK de montos).                                                                                                                                     |
-| 1763580000000 | `CreateSalidas`                 | `salidas`, `salida_imagenes`, índices.                                                                                                                                       |
-| 1763590000000 | `CreateProductos`               | `productos`, `producto_imagenes`, CHECKs, índice de categoría.                                                                                                               |
-| 1763600000000 | `RolesYPermisos`                | `roles`, `rol_permisos`, siembra Administrador/Cliente/Vendedor, `usuarios.rol_id` (reemplaza el flag `admin`).                                                              |
-| 1763610000000 | `CreatePedidos`                 | secuencia `comprobante_numero_seq`, `pedidos`, `pedido_items`.                                                                                                               |
-| 1763620000000 | `CreateConfiguracion`           | `configuracion` (fila única `id = 1`, sembrada).                                                                                                                             |
-| 1763630000000 | `AddStockMinimoProductos`       | `productos.stock_minimo` (default 5, CHECK 0–1.000.000).                                                                                                                     |
-| 1763640000000 | `CreateFacturas`                | `facturas`, `factura_imagenes`, `factura_cuotas`; convierte cada salida en una factura libre pagada; `salidas` gana `factura_id` y `nota` y pierde `factura` y `tienda`.     |
-| 1763650000000 | `DropTotalTransferenciasVentas` | `ventas` pierde `total_transferencias`; el CHECK `CK_ventas_montos` queda con `total`, `total_pinateria` y `total_papeleria`. Se niega a correr si hay montos en la columna. |
+| Timestamp     | Migración                       | Crea / cambia                                                                                                                                                                              |
+| ------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1763560000000 | `CreateUsuarios`                | `usuarios`.                                                                                                                                                                                |
+| 1763570000000 | `CreateVentas`                  | `ventas` (fecha única, CHECK de montos).                                                                                                                                                   |
+| 1763580000000 | `CreateSalidas`                 | `salidas`, `salida_imagenes`, índices.                                                                                                                                                     |
+| 1763590000000 | `CreateProductos`               | `productos`, `producto_imagenes`, CHECKs, índice de categoría.                                                                                                                             |
+| 1763600000000 | `RolesYPermisos`                | `roles`, `rol_permisos`, siembra Administrador/Cliente/Vendedor, `usuarios.rol_id` (reemplaza el flag `admin`).                                                                            |
+| 1763610000000 | `CreatePedidos`                 | secuencia `comprobante_numero_seq`, `pedidos`, `pedido_items`.                                                                                                                             |
+| 1763620000000 | `CreateConfiguracion`           | `configuracion` (fila única `id = 1`, sembrada).                                                                                                                                           |
+| 1763630000000 | `AddStockMinimoProductos`       | `productos.stock_minimo` (default 5, CHECK 0–1.000.000).                                                                                                                                   |
+| 1763640000000 | `CreateFacturas`                | `facturas`, `factura_imagenes`, `factura_cuotas`; convierte cada salida en una factura libre pagada; `salidas` gana `factura_id` y `nota` y pierde `factura` y `tienda`.                   |
+| 1763650000000 | `DropTotalTransferenciasVentas` | `ventas` pierde `total_transferencias`; el CHECK `CK_ventas_montos` queda con `total`, `total_pinateria` y `total_papeleria`. Se niega a correr si hay montos en la columna.               |
+| 1763660000000 | `CreateProveedores`             | `proveedores` (nombre único sin distinguir mayúsculas); `facturas.proveedor_id` (FK, NOT NULL) reemplaza al texto `facturas.proveedor`, con un proveedor creado por cada nombre existente. |
+| 1763670000000 | `FacturaNumeroOpcional`         | `facturas.numero` admite `NULL` (el índice único sobre `lower(numero)` no compara los `NULL`) y las que contienen «SIN NÚMERO» pasan a `NULL`.                                             |
 
 Para crear una: skill `database-migrations`. Una migración por propósito; nunca editar una ya aplicada. **Toda migración nueva debe ser idempotente** (`IF [NOT] EXISTS`, comprobaciones antes de crear constraints, datos con `ON CONFLICT`/`WHERE NOT EXISTS`), en `up` y en `down`, porque corre sola en CI contra `production` y puede encontrar el cambio ya aplicado a mano.
 
@@ -38,6 +40,7 @@ Para crear una: skill `database-migrations`. Una migración por propósito; nunc
 | `ventas`                                         | [ventas](./ventas.md)               |
 | `salidas`, `salida_imagenes`                     | [salidas](./salidas.md)             |
 | `facturas`, `factura_cuotas`, `factura_imagenes` | [facturas](./facturas.md)           |
+| `proveedores`                                    | [proveedores](./proveedores.md)     |
 | `configuracion`                                  | [configuracion](./configuracion.md) |
 
 ## Convenciones

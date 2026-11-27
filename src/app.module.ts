@@ -8,6 +8,7 @@ import { AuthModule } from "./auth/auth.module";
 import { VentasModule } from "./ventas/ventas.module";
 import { SalidaModule } from "./salidas/salida.module";
 import { FacturaModule } from "./facturas/factura.module";
+import { ProveedorModule } from "./proveedores/proveedor.module";
 import { CloudinaryModule } from "./cloudinary/cloudinary.modulo";
 import { FilesModule } from "./files/files.module";
 import { ProductoModule } from "./productos/producto.module";
@@ -38,6 +39,7 @@ import { envValidationSchema } from "./config/env.validation";
     CloudinaryModule,
     SalidaModule,
     FacturaModule,
+    ProveedorModule,
     FilesModule,
     ProductoModule,
     ReportesModule,

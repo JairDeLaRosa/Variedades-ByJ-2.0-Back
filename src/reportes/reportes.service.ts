@@ -185,7 +185,8 @@ export class ReportesService {
       this.salidas
         .createQueryBuilder("s")
         .leftJoin("s.factura", "f")
-        .select(`COALESCE(f.proveedor, '${SIN_FACTURA}')`, "tienda")
+        .leftJoin("f.proveedorRef", "pv")
+        .select(`COALESCE(pv.nombre, '${SIN_FACTURA}')`, "tienda")
         .addSelect("SUM(s.total)", "total")
         .addSelect("COUNT(*)", "cantidad")
         .where(`s.${entre}`, { desde, hasta })
@@ -260,10 +261,11 @@ export class ReportesService {
       this.facturaService.resumen(),
       this.facturas.query(
         `
-        SELECT f.proveedor,
+        SELECT pv.nombre AS proveedor,
                SUM(f.total + f.interes_monto - COALESCE(p.pagado, 0))::int AS saldo,
                COUNT(*)::int AS facturas
         FROM facturas f
+        JOIN proveedores pv ON pv.id = f.proveedor_id
         LEFT JOIN (
           SELECT factura_id, SUM(total) AS pagado
           FROM salidas
@@ -271,8 +273,8 @@ export class ReportesService {
           GROUP BY factura_id
         ) p ON p.factura_id = f.id
         WHERE f.total + f.interes_monto > COALESCE(p.pagado, 0)
-        GROUP BY f.proveedor
-        ORDER BY saldo DESC, f.proveedor ASC
+        GROUP BY pv.id, pv.nombre
+        ORDER BY saldo DESC, pv.nombre ASC
         LIMIT $1
       `,
         [CANTIDAD_RANKING],

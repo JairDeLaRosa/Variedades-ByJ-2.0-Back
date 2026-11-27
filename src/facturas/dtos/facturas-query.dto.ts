@@ -1,10 +1,12 @@
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
 } from "class-validator";
 
 export const ESTADOS_FILTRO = [
@@ -27,6 +29,13 @@ export class FacturasQueryDto {
   @IsString()
   @MaxLength(100)
   proveedor?: string;
+
+  /** Solo las facturas de este proveedor. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  proveedorId?: number;
 
   /** Mes de la factura, `YYYY-MM`. */
   @IsOptional()

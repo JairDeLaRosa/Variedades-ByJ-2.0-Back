@@ -5,7 +5,6 @@ import {
   IsIn,
   IsInt,
   IsISO8601,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -30,17 +29,21 @@ const recortar = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
 
 export class CreateFacturaDto {
-  @Transform(recortar)
+  /** Opcional: algunas facturas vienen sin número. Un texto vacío cuenta como «sin número». */
+  @IsOptional()
+  @Transform(({ value }) => {
+    const texto = recortar({ value });
+    return texto === "" ? undefined : texto;
+  })
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
-  numero: string;
+  numero?: string;
 
-  @Transform(recortar)
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  proveedor: string;
+  /** Proveedor de la lista (`GET api/proveedores`). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  proveedorId: number;
 
   /** Día de la factura, `YYYY-MM-DD`. */
   @Matches(FECHA, { message: "fecha debe ser YYYY-MM-DD" })

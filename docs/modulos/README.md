@@ -18,6 +18,7 @@ enlazan entre sí: si un módulo toca a otro, el enlace está en la sección **R
 | [Pedidos y ventas del sistema](./pedidos.md) | `api/pedidos`, `api/ventas-sistema` | Pedidos de la tienda en línea, ventas de mostrador y comprobantes.         |
 | [Ventas (cierre diario)](./ventas.md)        | `api/ventas`                        | Cierre de caja de cada día (no son las ventas del sistema).                |
 | [Salidas](./salidas.md)                      | `api/salidas`                       | Pagos y abonos del negocio (de una factura o libres) con soportes.         |
+| [Proveedores](./proveedores.md)              | `api/proveedores`                   | Catálogo de proveedores, con sus facturas y lo que se les debe.            |
 | [Facturas](./facturas.md)                    | `api/facturas`                      | Facturas de proveedor (libre, plazo o cuotas), saldos y resumen de deudas. |
 | [Reportes](./reportes.md)                    | `api/reportes`                      | Resumen de ventas vs. salidas en un rango de fechas.                       |
 | [Notificaciones](./notificaciones.md)        | `api/notificaciones`                | Avisos del panel calculados al momento.                                    |
@@ -45,6 +46,8 @@ graph LR
     SALIDAS[salidas] --> FILES
     SALIDAS --> FACTURAS[facturas]
     FACTURAS --> FILES
+    FACTURAS --> PROVEEDORES[proveedores]
+    PROVEEDORES --> FACTURAS
     CONFIG[configuracion] --> FILES
     VENTAS[ventas]
   end
@@ -89,6 +92,7 @@ SQL directo o constantes importadas). Todos los módulos con endpoints protegido
 | **Cierre diario**         | Fila de `ventas`: totales de piñatería y papelería de un día. Módulo [ventas](./ventas.md).                    |
 | **Venta del sistema**     | Un [pedido](./pedidos.md) en estado `entregado` (de la web o del mostrador), con número de comprobante `CV-…`. |
 | **Salida**                | Dinero que sale del negocio (compra o pago). Módulo [salidas](./salidas.md).                                   |
+| **Proveedor**             | Empresa a la que se le compra; las facturas pertenecen a uno. Módulo [proveedores](./proveedores.md).          |
 | **Factura**               | Factura de compra a un proveedor, con modalidad libre/plazo/cuotas. Módulo [facturas](./facturas.md).          |
 | **Mostrador**             | Canal de venta presencial (`canal = mostrador`); el vendedor la registra ya entregada.                         |
 | **Piñatería / Papelería** | Las dos líneas del negocio; el cierre diario las separa.                                                       |

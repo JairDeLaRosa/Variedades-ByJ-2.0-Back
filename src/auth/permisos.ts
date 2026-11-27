@@ -41,6 +41,11 @@ export enum Permiso {
   FacturasEditar = "facturas.editar",
   FacturasEliminar = "facturas.eliminar",
 
+  ProveedoresVer = "proveedores.ver",
+  ProveedoresCrear = "proveedores.crear",
+  ProveedoresEditar = "proveedores.editar",
+  ProveedoresEliminar = "proveedores.eliminar",
+
   ReportesVer = "reportes.ver",
 
   UsuariosVer = "usuarios.ver",
@@ -177,6 +182,23 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
       { clave: Permiso.FacturasRegistrar, etiqueta: "Registrar facturas" },
       { clave: Permiso.FacturasEditar, etiqueta: "Editar facturas" },
       { clave: Permiso.FacturasEliminar, etiqueta: "Eliminar facturas" },
+    ],
+  },
+  {
+    modulo: "proveedores",
+    etiqueta: "Proveedores",
+    permisos: [
+      {
+        clave: Permiso.ProveedoresVer,
+        etiqueta: "Ver proveedores",
+        nota: "Incluye sus facturas y lo que se les debe. También permite elegirlos al registrar una factura.",
+      },
+      { clave: Permiso.ProveedoresCrear, etiqueta: "Crear proveedores" },
+      {
+        clave: Permiso.ProveedoresEditar,
+        etiqueta: "Editar y desactivar proveedores",
+      },
+      { clave: Permiso.ProveedoresEliminar, etiqueta: "Eliminar proveedores" },
     ],
   },
   {

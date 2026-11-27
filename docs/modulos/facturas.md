@@ -7,15 +7,15 @@ Factura de compra a un proveedor y cuánto se ha pagado de ella. Lo **pagado** n
 
 ## Endpoints
 
-| Método | Ruta                           | Permiso              | Descripción                                                                                             |
-| ------ | ------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/facturas`                | `facturas.registrar` | `multipart/form-data`: campos + soportes nuevos en `imagenes`. 409 si el número ya existe.              |
-| GET    | `/api/facturas`                | `facturas.ver`       | Lista con `totalAPagar`, `pagado`, `saldo` y `estado`. Filtros `?estado=&proveedor=&mes=YYYY-MM`.       |
-| GET    | `/api/facturas/resumen`        | `facturas.ver`       | `facturado`, `pagado`, `porPagar`, `vencido`, `porVencer7Dias`, `facturasConSaldo`, `masDeuda` (top 5). |
-| GET    | `/api/facturas/simular-cuotas` | `facturas.registrar` | `?total&numeroCuotas&periodicidad&primeraCuota&interesPorcentaje?`: calcula el calendario sin guardar.  |
-| GET    | `/api/facturas/:id`            | `facturas.ver`       | Detalle: cuotas con su estado, soportes y `abonos` (las salidas de la factura). 404 si no existe.       |
-| PUT    | `/api/facturas/:id`            | `facturas.editar`    | Reemplaza datos y soportes (`conservar`). Ver reglas con pagos.                                         |
-| DELETE | `/api/facturas/:id`            | `facturas.eliminar`  | 204; 409 si tiene pagos. Borra los soportes de Cloudinary.                                              |
+| Método | Ruta                           | Permiso              | Descripción                                                                                                    |
+| ------ | ------------------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/facturas`                | `facturas.registrar` | `multipart/form-data`: campos + soportes nuevos en `imagenes`. 409 si el número ya existe.                     |
+| GET    | `/api/facturas`                | `facturas.ver`       | Lista con `totalAPagar`, `pagado`, `saldo` y `estado`. Filtros `?estado=&proveedor=&proveedorId=&mes=YYYY-MM`. |
+| GET    | `/api/facturas/resumen`        | `facturas.ver`       | `facturado`, `pagado`, `porPagar`, `vencido`, `porVencer7Dias`, `facturasConSaldo`, `masDeuda` (top 5).        |
+| GET    | `/api/facturas/simular-cuotas` | `facturas.registrar` | `?total&numeroCuotas&periodicidad&primeraCuota&interesPorcentaje?`: calcula el calendario sin guardar.         |
+| GET    | `/api/facturas/:id`            | `facturas.ver`       | Detalle: cuotas con su estado, soportes y `abonos` (las salidas de la factura). 404 si no existe.              |
+| PUT    | `/api/facturas/:id`            | `facturas.editar`    | Reemplaza datos y soportes (`conservar`). Ver reglas con pagos.                                                |
+| DELETE | `/api/facturas/:id`            | `facturas.eliminar`  | 204; 409 si tiene pagos. Borra los soportes de Cloudinary.                                                     |
 
 `resumen` y `simular-cuotas` están declaradas antes de `:id` en el controller: el orden importa.
 
@@ -27,7 +27,7 @@ Factura de compra a un proveedor y cuánto se ha pagado de ella. Lo **pagado** n
 | `plazo`   | Una sola fecha límite.                                  | `vence`                                                                          |
 | `cuotas`  | Calendario de cuotas iguales (2–60) con interés simple. | `numeroCuotas`, `periodicidad` (`semanal`/`quincenal`/`mensual`), `primeraCuota` |
 
-Comunes: `numero` (≤50, único sin distinguir mayúsculas), `proveedor` (≤100, texto libre), `fecha`, `total` (1–2.000.000.000),
+Comunes: `numero?` (≤50; opcional, porque hay facturas sin número; si viene, único sin distinguir mayúsculas), `proveedorId` (proveedor de la lista; debe existir y estar activo, ver [proveedores](./proveedores.md)), `fecha`, `total` (1–2.000.000.000),
 `interesPorcentaje?` (0–100, 2 decimales), `notas?` (≤500), `conservar?` (soportes). Los campos de otra modalidad se
 ignoran. Con `forbidNonWhitelisted`, cualquier campo no declarado en el DTO da 400.
 
@@ -55,7 +55,7 @@ lo que vence entre hoy y 7 días.
 
 ## Modelo de datos
 
-`facturas` (`numero`, `proveedor`, `fecha`, `total`, `modalidad`, `vence`, `periodicidad`, `interes_porcentaje` numeric(5,2)
+`facturas` (`numero`, `proveedor_id` → `proveedores`, `fecha`, `total`, `modalidad`, `vence`, `periodicidad`, `interes_porcentaje` numeric(5,2)
 con transformer a número, `interes_monto`, `notas`), `factura_cuotas` (`numero`, `vence`, `monto`; CASCADE; único por
 `(factura_id, numero)`) y `factura_imagenes` (`public_id` único, `url`; CASCADE). Índice único `UQ_facturas_numero` sobre
 `lower(numero)`. Las relaciones **no** son `eager` para que [salidas](./salidas.md), que cargan su factura, no arrastren
@@ -80,3 +80,5 @@ cuotas ni soportes. Migración `CreateFacturas` ([base de datos](./base-de-datos
 
 - Módulo creado: entidades, `calculos.ts`, service, controller, migración `CreateFacturas`, permisos `facturas.*`, tests
   (`calculos.spec.ts`, `factura.service.spec.ts`) y simulador de cuotas. Tests (254 en el backend) y migración ejecutados; la migración se aplicó en `production` el 2026-11-25.
+- Se reemplaza el proveedor de texto libre por `proveedorId` ([proveedores](./proveedores.md)): la respuesta trae `proveedorId` y el nombre en `proveedor`; `GET api/facturas` acepta `?proveedorId=`. Migración `CreateProveedores`.
+- `numero` pasa a ser opcional (columna nullable, migración `FacturaNumeroOpcional`, que además deja en `NULL` las facturas cuyo número contiene «SIN NÚMERO», sin distinguir mayúsculas): varias facturas pueden quedar sin número, porque el índice único `UQ_facturas_numero` no compara los `NULL`. La respuesta trae `numero: null` en esas facturas, también en `factura` de [salidas](./salidas.md) y en `masDeuda` del resumen.

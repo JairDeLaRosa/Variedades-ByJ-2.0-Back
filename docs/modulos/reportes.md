@@ -49,3 +49,4 @@ Además de lo anterior: `salidas` trae `aFacturas` y `libres` (pagos con y sin f
 - Estadísticas de deuda: lo facturado y lo pagado en el periodo (con y sin factura) y lo que se debe hoy, por proveedor, con `facturas.ver`.
 - `ventas.transferencias` sale de la respuesta: el cierre diario ya no tiene ese campo ([ventas](./ventas.md)).
 - El ranking de tiendas toma el proveedor de la factura (`LEFT JOIN`) y agrupa los pagos libres como «Sin factura».
+- El ranking de pagos y la deuda agrupan por la tabla `proveedores` ([proveedores](./proveedores.md)) en vez del texto de la factura: «Papelería Central» y «papeleria central» ya son el mismo proveedor.

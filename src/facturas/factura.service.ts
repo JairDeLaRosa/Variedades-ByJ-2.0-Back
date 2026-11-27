@@ -9,6 +9,7 @@ import { Repository } from "typeorm";
 import { rangoDelMes } from "../common/month-range";
 import { ImagenDto } from "../common/dtos/imagen.dto";
 import { FilesService } from "../files/files.service";
+import { Proveedor } from "../proveedores/proveedor.entity";
 import { Salida } from "../salidas/salida.entity";
 import {
   calcularCuotas,
@@ -40,7 +41,8 @@ const MENSAJE_CON_PAGOS =
 /** Factura con lo que se debe, lo pagado y su estado. */
 export interface FacturaVista {
   id: number;
-  numero: string;
+  numero: string | null;
+  proveedorId: number;
   proveedor: string;
   fecha: string;
   total: number;
@@ -79,7 +81,7 @@ export interface ResumenFacturas {
   facturasConSaldo: number;
   masDeuda: {
     id: number;
-    numero: string;
+    numero: string | null;
     proveedor: string;
     saldo: number;
     estado: EstadoPago;
@@ -89,8 +91,8 @@ export interface ResumenFacturas {
 /** Los campos de la factura según su modalidad; ignora los de las otras. */
 function construirDatos(dto: CreateFacturaDto) {
   const base = {
-    numero: dto.numero,
-    proveedor: dto.proveedor,
+    numero: dto.numero ?? null,
+    proveedorId: dto.proveedorId,
     fecha: dto.fecha,
     total: dto.total,
     modalidad: dto.modalidad,
@@ -141,6 +143,7 @@ export class FacturaService {
     archivos: Express.Multer.File[] = [],
   ): Promise<FacturaDetalle> {
     this.files.validarLote(archivos, 0);
+    await this.validarProveedor(dto.proveedorId);
     const subidos = await this.files.uploadAll(archivos);
 
     let guardada: Factura;
@@ -270,6 +273,7 @@ export class FacturaService {
     const factura = await this.cargarConSoportes(id);
     const anteriores = factura.imagenes;
     const conservar = new Set(dto.conservar ?? []);
+    await this.validarProveedor(dto.proveedorId, factura.proveedorId);
 
     if (
       ![...conservar].every((p) => anteriores.some((a) => a.publicId === p))
@@ -288,6 +292,7 @@ export class FacturaService {
         await manager.findOne(Factura, {
           where: { id },
           lock: { mode: "pessimistic_write" },
+          loadEagerRelations: false,
         });
         const fila = await manager
           .createQueryBuilder(Salida, "s")
@@ -352,14 +357,21 @@ export class FacturaService {
   /** Facturas con sus cuotas, de la más reciente a la más antigua. */
   private cargar({
     proveedor,
+    proveedorId,
     mes,
-  }: Pick<FacturasQueryDto, "proveedor" | "mes">): Promise<Factura[]> {
+  }: Pick<FacturasQueryDto, "proveedor" | "proveedorId" | "mes">): Promise<
+    Factura[]
+  > {
     const consulta = this.facturas
       .createQueryBuilder("f")
+      .innerJoinAndSelect("f.proveedorRef", "p")
       .leftJoinAndSelect("f.cuotas", "c");
 
+    if (proveedorId) {
+      consulta.andWhere("f.proveedorId = :proveedorId", { proveedorId });
+    }
     if (proveedor) {
-      consulta.andWhere("f.proveedor ILIKE :proveedor", {
+      consulta.andWhere("p.nombre ILIKE :proveedor", {
         proveedor: `%${proveedor.replace(/[\\%_]/g, "\\$&")}%`,
       });
     }
@@ -382,6 +394,7 @@ export class FacturaService {
     const factura = await this.facturas.findOne({
       where: { id },
       relations: { imagenes: true },
+      loadEagerRelations: false,
       order: { imagenes: { id: "ASC" } },
     });
     if (!factura) {
@@ -411,6 +424,7 @@ export class FacturaService {
     const vista: FacturaVista = {
       id: factura.id,
       numero: factura.numero,
+      proveedorId: factura.proveedorId,
       proveedor: factura.proveedor,
       fecha: factura.fecha,
       total: factura.total,
@@ -470,9 +484,26 @@ export class FacturaService {
     return Object.assign(new FacturaImagen(), { publicId, url });
   }
 
+  /**
+   * El proveedor debe existir y estar activo. Al editar se admite el que la
+   * factura ya tiene aunque se haya desactivado después.
+   */
+  private async validarProveedor(id: number, actualId?: number): Promise<void> {
+    const proveedor = await this.facturas.manager.findOneBy(Proveedor, { id });
+    if (!proveedor) {
+      throw new BadRequestException("El proveedor no existe.");
+    }
+    if (!proveedor.activo && id !== actualId) {
+      throw new BadRequestException("El proveedor está desactivado.");
+    }
+  }
+
   /** Convierte las violaciones de unicidad en un 409 con un mensaje claro. */
   private traducir(error: unknown): unknown {
     const falla = error as { code?: string; constraint?: string };
+    if (falla?.code === PG_FK_VIOLATION) {
+      return new BadRequestException("El proveedor no existe.");
+    }
     if (falla?.code !== PG_UNIQUE_VIOLATION) return error;
     return new ConflictException(
       falla.constraint === "UQ_facturas_numero"
